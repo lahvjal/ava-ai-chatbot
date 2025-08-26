@@ -1,15 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// Debug all environment variables
+console.log('🔧 [SUPABASE] All env vars:', {
+  NODE_ENV: process.env.NODE_ENV,
+  allEnvKeys: Object.keys(process.env).filter(key => key.includes('SUPABASE')),
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'EXISTS' : 'MISSING'
+});
 
-// Debug environment variables on initialization
-console.log('🔧 [SUPABASE] Client initialization:', {
-  hasUrl: !!supabaseUrl,
-  hasKey: !!supabaseAnonKey,
-  urlLength: supabaseUrl?.length,
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ugolpzpaykhrumlwcpue.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnb2xwenBheWtocnVtbHdjcHVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDYxMjQsImV4cCI6MjA1OTYyMjEyNH0.6QBjm_II-N1NcZQnzeF5QXwDWMUp8s4zuHX5AXgRdG0';
+
+console.log('🔧 [SUPABASE] Using values:', {
+  url: supabaseUrl,
   keyLength: supabaseAnonKey?.length,
-  urlPreview: supabaseUrl?.substring(0, 30) + '...'
+  isFromEnv: !!process.env.NEXT_PUBLIC_SUPABASE_URL
 });
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
