@@ -1,21 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Debug all environment variables
-console.log('🔧 [SUPABASE] All env vars:', {
+// Debug environment and compare localhost vs Vercel
+console.log('🔧 [SUPABASE] Environment comparison:', {
   NODE_ENV: process.env.NODE_ENV,
-  allEnvKeys: Object.keys(process.env).filter(key => key.includes('SUPABASE')),
-  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'EXISTS' : 'MISSING'
+  platform: typeof window !== 'undefined' ? 'client' : 'server',
+  isVercel: !!process.env.VERCEL,
+  region: process.env.VERCEL_REGION,
+  envUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  envKeyExists: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  envKeyMatch: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnb2xwenBheWtocnVtbHdjcHVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDYxMjQsImV4cCI6MjA1OTYyMjEyNH0.6QBjm_II-N1NcZQnzeF5QXwDWMUp8s4zuHX5AXgRdG0'
 });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ugolpzpaykhrumlwcpue.supabase.co';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnb2xwenBheWtocnVtbHdjcHVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDYxMjQsImV4cCI6MjA1OTYyMjEyNH0.6QBjm_II-N1NcZQnzeF5QXwDWMUp8s4zuHX5AXgRdG0';
-
-console.log('🔧 [SUPABASE] Using values:', {
-  url: supabaseUrl,
-  keyLength: supabaseAnonKey?.length,
-  isFromEnv: !!process.env.NEXT_PUBLIC_SUPABASE_URL
-});
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
