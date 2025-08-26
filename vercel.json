@@ -1,16 +1,4 @@
 {
-  "env": {
-    "OPENAI_API_KEY": "@openai_api_key",
-    "NEXT_PUBLIC_SUPABASE_URL": "@supabase_url",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase_anon_key"
-  },
-  "build": {
-    "env": {
-      "OPENAI_API_KEY": "@openai_api_key",
-      "NEXT_PUBLIC_SUPABASE_URL": "@supabase_url",
-      "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase_anon_key"
-    }
-  },
   "functions": {
     "pages/api/chat.ts": {
       "maxDuration": 30
