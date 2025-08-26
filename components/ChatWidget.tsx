@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MessageCircle, X, Minimize2 } from 'lucide-react';
+import { Send, MessageSquare, X, User, LogIn, MessageCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -12,13 +13,20 @@ interface ChatWidgetProps {
   apiEndpoint?: string;
 }
 
-export default function ChatWidget({ isEmbedded = false, apiEndpoint = '/api/chat' }: ChatWidgetProps) {
+const ChatWidget: React.FC<ChatWidgetProps> = ({ 
+  isEmbedded = false, 
+  apiEndpoint = '/api/chat' 
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showProjectForm, setShowProjectForm] = useState(false);
+  const [showProjectLookup, setShowProjectLookup] = useState(false);
   const [projectEmail, setProjectEmail] = useState('');
+  const [user, setUser] = useState<any>(null);
+  const [showLogin, setShowLogin] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -28,6 +36,70 @@ export default function ChatWidget({ isEmbedded = false, apiEndpoint = '/api/cha
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Check for existing auth session
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUser(session.user);
+        console.log('🔐 [AUTH] Found existing session:', session.user.email);
+      }
+    };
+    
+    checkSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔐 [AUTH] State change:', event, session?.user?.email);
+      setUser(session?.user || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      });
+
+      if (error) {
+        console.error('❌ [AUTH] Login error:', error);
+        // Add error message to chat
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `Login failed: ${error.message}. Please check your credentials or contact support.`,
+          timestamp: new Date()
+        }]);
+      } else {
+        console.log('✅ [AUTH] Login successful:', data.user?.email);
+        setShowLogin(false);
+        setLoginEmail('');
+        setLoginPassword('');
+        // Add success message
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `Welcome back! I can now access your project information. How can I help you today?`,
+          timestamp: new Date()
+        }]);
+      }
+    } catch (error) {
+      console.error('❌ [AUTH] Login exception:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setMessages([]);
+    console.log('🔐 [AUTH] Logged out');
+  };
 
   const sendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
@@ -43,29 +115,26 @@ export default function ChatWidget({ isEmbedded = false, apiEndpoint = '/api/cha
     setIsLoading(true);
 
     try {
-      const conversationHistory = messages.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-      }));
-
-      const requestBody: any = {
-        message: inputValue,
-        conversationHistory,
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
       };
 
-      // Add project lookup data if provided
-      if (projectEmail) {
-        requestBody.projectLookup = {
-          email: projectEmail
-        };
+      // Add auth token if user is logged in
+      if (user) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
       }
 
       const response = await fetch(apiEndpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
+        headers,
+        body: JSON.stringify({
+          message: inputValue,
+          conversationHistory: messages,
+          projectLookup: projectEmail ? { email: projectEmail } : undefined
+        }),
       });
 
       const data = await response.json();
@@ -94,7 +163,7 @@ export default function ChatWidget({ isEmbedded = false, apiEndpoint = '/api/cha
 
   const clearProjectForm = () => {
     setProjectEmail('');
-    setShowProjectForm(false);
+    setShowProjectLookup(true);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -180,8 +249,51 @@ export default function ChatWidget({ isEmbedded = false, apiEndpoint = '/api/cha
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Login Form */}
+      {showLogin && (
+        <div className="p-4 border-t border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-medium text-gray-700">Customer Login</h4>
+            <button
+              onClick={() => setShowLogin(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-3">
+            <input
+              type="email"
+              placeholder="Your email address"
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isLoading ? 'Logging in...' : 'Login'}
+            </button>
+          </form>
+          <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700">
+            ℹ️ Login to access your project information and get personalized assistance
+          </div>
+        </div>
+      )}
+
       {/* Project Lookup Form */}
-      {showProjectForm && (
+      {showProjectLookup && user && (
         <div className="p-4 border-t border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between mb-3">
             <h4 className="font-medium text-gray-700">Project Lookup</h4>
@@ -212,16 +324,34 @@ export default function ChatWidget({ isEmbedded = false, apiEndpoint = '/api/cha
       {/* Input */}
       <div className="p-4 border-t border-gray-200">
         <div className="flex items-center space-x-2 mb-2">
-          <button
-            onClick={() => setShowProjectForm(!showProjectForm)}
-            className={`text-xs px-2 py-1 rounded ${
-              showProjectForm 
-                ? 'bg-blue-100 text-blue-700' 
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            } transition-colors`}
-          >
-            📋 Project Status
-          </button>
+          {!user ? (
+            <button
+              onClick={() => setShowLogin(true)}
+              className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors flex items-center space-x-1"
+            >
+              <LogIn size={12} />
+              <span>Login</span>
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => setShowProjectLookup(!showProjectLookup)}
+                className={`text-xs px-2 py-1 rounded ${
+                  showProjectLookup 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                } transition-colors`}
+              >
+                📋 Project Status
+              </button>
+              <button
+                onClick={handleLogout}
+                className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+              >
+                Logout
+              </button>
+            </>
+          )}
           {projectEmail && (
             <span className="text-xs text-blue-600 font-medium">
               Email ready

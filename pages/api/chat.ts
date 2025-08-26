@@ -57,11 +57,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (isProjectQuery || projectLookup) {
     console.log('🔍 [AVA-CHAT] Detected project query or structured lookup, calling project lookup API');
     try {
+      // Get user session from request headers
+      const authHeader = req.headers.authorization;
+      const sessionToken = authHeader?.replace('Bearer ', '');
+      
       const lookupPayload = projectLookup ? {
         email: projectLookup.email,
-        query: message
+        query: message,
+        sessionToken: sessionToken
       } : {
-        query: message
+        query: message,
+        sessionToken: sessionToken
       };
 
       console.log('📋 [AVA-CHAT] Project lookup payload:', lookupPayload);

@@ -46,7 +46,7 @@ export interface Project {
 }
 
 // Database functions for project queries
-export async function getProjectByEmail(email: string): Promise<Project[]> {
+export async function getProjectByEmail(email: string, userSession?: any): Promise<Project[]> {
   console.log('🔍 [SUPABASE] Searching podio_data by email:', {
     email: `"${email}"`,
     timestamp: new Date().toISOString()
