@@ -47,31 +47,39 @@ export async function getProjectByEmail(email: string): Promise<Project[]> {
     timestamp: new Date().toISOString()
   });
 
-  // Test Supabase client initialization with detailed error logging
+  // Test both anon and admin clients
+  console.log('🔧 [SUPABASE] Testing both clients...');
+  
+  // Test admin client first
   try {
-    const { data: testData, error: testError } = await supabase
+    const { data: adminData, error: adminError } = await supabaseAdmin
       .from('podio_data')
       .select('count', { count: 'exact', head: true });
     
-    console.log('🔧 [SUPABASE] Connection test:', {
-      canConnect: !testError,
-      error: testError?.message,
-      errorCode: testError?.code,
-      errorDetails: testError?.details,
-      errorHint: testError?.hint,
-      totalRows: testData
+    console.log('🔧 [SUPABASE] Admin client test:', {
+      usingAdmin: supabaseAdmin !== supabase,
+      canConnect: !adminError,
+      error: adminError?.message,
+      errorCode: adminError?.code,
+      totalRows: adminData
     });
+  } catch (adminConnectionError) {
+    console.error('❌ [SUPABASE] Admin client failed:', adminConnectionError);
+  }
 
-    if (testError) {
-      console.error('❌ [SUPABASE] Detailed error:', {
-        message: testError.message,
-        code: testError.code,
-        details: testError.details,
-        hint: testError.hint
-      });
-    }
-  } catch (connectionError) {
-    console.error('❌ [SUPABASE] Connection failed:', connectionError);
+  // Test anon client for comparison
+  try {
+    const { data: anonData, error: anonError } = await supabase
+      .from('podio_data')
+      .select('count', { count: 'exact', head: true });
+    
+    console.log('🔧 [SUPABASE] Anon client test:', {
+      canConnect: !anonError,
+      error: anonError?.message,
+      errorCode: anonError?.code
+    });
+  } catch (anonConnectionError) {
+    console.error('❌ [SUPABASE] Anon client failed:', anonConnectionError);
   }
 
   const { data, error } = await supabaseAdmin
