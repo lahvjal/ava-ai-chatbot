@@ -9,13 +9,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { query, email, sessionToken } = req.body;
   
   // Extract email from session token if not provided directly
-  let userEmail = email;
-  if (!userEmail && sessionToken) {
+  // Extract user email from session token and validate JWT structure
+  let userEmail = null;
+  if (sessionToken) {
     try {
+      console.log('🔍 [PROJECT-LOOKUP] Session token received:', {
+        tokenLength: sessionToken.length,
+        tokenStart: sessionToken.substring(0, 20) + '...',
+        hasThreeParts: sessionToken.split('.').length === 3
+      });
+      
       // Decode JWT token to get user email
       const payload = JSON.parse(Buffer.from(sessionToken.split('.')[1], 'base64').toString());
       userEmail = payload.email;
-      console.log('🔐 [PROJECT-LOOKUP] Extracted email from session:', userEmail);
+      
+      console.log('🔐 [PROJECT-LOOKUP] JWT payload decoded:', {
+        email: userEmail,
+        sub: payload.sub,
+        role: payload.role,
+        aud: payload.aud,
+        exp: payload.exp,
+        iat: payload.iat,
+        isExpired: payload.exp < Date.now() / 1000
+      });
     } catch (error) {
       console.error('❌ [PROJECT-LOOKUP] Failed to decode session token:', error);
     }

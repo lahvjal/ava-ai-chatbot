@@ -47,11 +47,11 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
     timestamp: new Date().toISOString()
   });
 
-  // Use authenticated client with user session or fallback to service role for production
+  // Only use authenticated client with user session - no service role fallback
   let authenticatedClient;
   
-  if (userSession) {
-    // Try authenticated client first
+  if (userSession && userSession.access_token) {
+    console.log('🔐 [SUPABASE] Creating authenticated client with session token');
     authenticatedClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -63,21 +63,16 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
         }
       }
     );
-  } else if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    // Fallback to service role for server-side access
-    authenticatedClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
   } else {
-    // Last resort: use anon client
+    console.log('⚠️ [SUPABASE] No valid user session, using anon client (will likely fail with RLS)');
     authenticatedClient = supabase;
   }
 
   console.log('🔧 [SUPABASE] Using client:', {
     hasUserSession: !!userSession,
-    hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    clientType: userSession ? 'authenticated' : (process.env.SUPABASE_SERVICE_ROLE_KEY ? 'service_role' : 'anon'),
+    hasAccessToken: !!(userSession?.access_token),
+    accessTokenLength: userSession?.access_token?.length || 0,
+    clientType: (userSession && userSession.access_token) ? 'authenticated' : 'anon',
     environment: process.env.NODE_ENV || 'development'
   });
 
@@ -95,8 +90,18 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
       code: tableError.code,
       message: tableError.message,
       details: tableError.details,
-      hint: tableError.hint
+      hint: tableError.hint,
+      possibleCause: tableError.code === '42501' ? 'RLS policy blocking access' : 'Unknown'
     });
+    
+    // If it's a permission error, check if RLS is enabled
+    if (tableError.code === '42501') {
+      console.log('🔒 [SUPABASE] RLS Permission Error - Check if:');
+      console.log('   1. RLS is enabled on podio_data table');
+      console.log('   2. Policy exists for authenticated users');
+      console.log('   3. User email matches policy conditions');
+    }
+    
     return [];
   }
   
