@@ -1,14 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Debug environment and compare localhost vs Vercel
-console.log('🔧 [SUPABASE] Environment comparison:', {
+// Debug service role key loading
+console.log('🔧 [SUPABASE] Service role key debug:', {
   NODE_ENV: process.env.NODE_ENV,
-  platform: typeof window !== 'undefined' ? 'client' : 'server',
+  hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+  serviceKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length,
   isVercel: !!process.env.VERCEL,
-  region: process.env.VERCEL_REGION,
-  envUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  envKeyExists: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  envKeyMatch: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnb2xwenBheWtocnVtbHdjcHVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDYxMjQsImV4cCI6MjA1OTYyMjEyNH0.6QBjm_II-N1NcZQnzeF5QXwDWMUp8s4zuHX5AXgRdG0'
+  willUseAdmin: !!process.env.SUPABASE_SERVICE_ROLE_KEY
 });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ugolpzpaykhrumlwcpue.supabase.co';
