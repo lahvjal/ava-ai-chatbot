@@ -42,6 +42,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     email: email ? `"${email}"` : 'not provided',
     userEmail: userEmail ? `"${userEmail}"` : 'not provided',
     hasSessionToken: !!sessionToken,
+    sessionTokenLength: sessionToken?.length || 0,
+    environment: process.env.NODE_ENV,
+    isVercel: !!process.env.VERCEL,
     timestamp: new Date().toISOString()
   });
 
@@ -83,7 +86,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       projectIds: formattedProjects.map(p => p.project_id),
       emails: formattedProjects.map(p => p.email),
       milestones: formattedProjects.map(p => p.milestone),
-      hasParsedPayload: formattedProjects.map(p => !!p.parsed_payload)
+      hasParsedPayload: formattedProjects.map(p => !!p.parsed_payload),
+      environment: process.env.NODE_ENV,
+      isVercel: !!process.env.VERCEL,
+      timestamp: new Date().toISOString()
     });
 
     // Debug environment variables in project lookup

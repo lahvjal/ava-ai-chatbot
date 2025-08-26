@@ -1,12 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Debug service role key loading
-console.log('🔧 [SUPABASE] Service role key debug:', {
+// Enhanced debug logging for production troubleshooting
+console.log('🔧 [SUPABASE] Environment debug:', {
   NODE_ENV: process.env.NODE_ENV,
-  hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-  serviceKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length,
   isVercel: !!process.env.VERCEL,
-  willUseAdmin: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+  hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+  hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+  supabaseUrlLength: process.env.NEXT_PUBLIC_SUPABASE_URL?.length,
+  anonKeyLength: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length,
+  serviceKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length,
+  timestamp: new Date().toISOString()
 });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ugolpzpaykhrumlwcpue.supabase.co';
@@ -44,6 +48,9 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
     emailLength: email.length,
     emailTrimmed: email.trim(),
     hasUserSession: !!userSession,
+    sessionTokenLength: userSession?.access_token?.length || 0,
+    environment: process.env.NODE_ENV,
+    isVercel: !!process.env.VERCEL,
     timestamp: new Date().toISOString()
   });
 
@@ -83,7 +90,11 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
         error: userError.message,
         code: userError.status,
         details: userError,
-        environment: process.env.NODE_ENV
+        environment: process.env.NODE_ENV,
+        isVercel: !!process.env.VERCEL,
+        tokenLength: userSession.access_token?.length,
+        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        timestamp: new Date().toISOString()
       });
       console.log('⚠️ [SUPABASE] Using anon client as fallback');
       clientToUse = authenticatedClient; // Fallback to anon client
@@ -93,7 +104,10 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
         userId: user?.id,
         userEmail: user?.email,
         userRole: user?.role,
-        isAuthenticated: !!user
+        isAuthenticated: !!user,
+        environment: process.env.NODE_ENV,
+        isVercel: !!process.env.VERCEL,
+        timestamp: new Date().toISOString()
       });
     }
   } else {
@@ -123,7 +137,12 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
     totalRows: count,
     hasError: !!countError,
     errorCode: countError?.code,
-    errorMessage: countError?.message
+    errorMessage: countError?.message,
+    errorDetails: countError?.details,
+    errorHint: countError?.hint,
+    environment: process.env.NODE_ENV,
+    isVercel: !!process.env.VERCEL,
+    timestamp: new Date().toISOString()
   });
   
   // Try to get table info first
@@ -138,7 +157,11 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
       message: tableError.message,
       details: tableError.details,
       hint: tableError.hint,
-      possibleCause: tableError.code === '42501' ? 'RLS policy blocking access' : 'Unknown'
+      possibleCause: tableError.code === '42501' ? 'RLS Policy Blocking Access' : 'Unknown',
+      environment: process.env.NODE_ENV,
+      isVercel: !!process.env.VERCEL,
+      clientType: userSession ? 'authenticated' : 'anon',
+      timestamp: new Date().toISOString()
     });
     
     // If it's a permission error, check if RLS is enabled
@@ -169,7 +192,10 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
       caseInsensitiveMatch: p.email?.toLowerCase() === email?.toLowerCase(),
       trimmedMatch: p.email?.trim() === email?.trim()
     })) || [],
-    searchingFor: email
+    searchingFor: email,
+    environment: process.env.NODE_ENV,
+    isVercel: !!process.env.VERCEL,
+    timestamp: new Date().toISOString()
   });
 
   // Try exact match first with all columns
@@ -267,15 +293,17 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
   
   console.log('✅ [SUPABASE] Query successful. Found records:', {
     count: data?.length || 0,
-    exactMatchFound: data?.length > 0,
-    records: data?.map(p => ({
-      id: p.id,
-      email: p.email,
-      project_id: p.project_id || p.id,
-      milestone: p.milestone || 'Unknown',
+    exactMatchFound: (data?.length || 0) > 0,
+    records: data?.map(p => ({ 
+      id: p.id, 
+      email: p.email, 
+      project_id: p.project_id,
       hasRawPayload: !!p.raw_payload,
       updated_at: p.updated_at
-    }))
+    })) || [],
+    environment: process.env.NODE_ENV,
+    isVercel: !!process.env.VERCEL,
+    timestamp: new Date().toISOString()
   });
   
   // Parse raw_payload JSON data for each project
