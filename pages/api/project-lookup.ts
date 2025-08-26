@@ -51,6 +51,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       hasParsedPayload: formattedProjects.map(p => !!p.parsed_payload)
     });
 
+    // Debug environment variables in project lookup
+    console.log('🔧 [PROJECT-LOOKUP] Environment check:', {
+      hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL
+    });
+
     res.status(200).json({ 
       projects: formattedProjects,
       count: formattedProjects.length

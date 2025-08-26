@@ -45,6 +45,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     timestamp: new Date().toISOString()
   });
 
+  // Debug environment variables in production
+  console.log('🔧 [AVA-CHAT] Environment check:', {
+    hasOpenAI: !!process.env.OPENAI_API_KEY,
+    hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL
+  });
+
   let projectData = null;
   if (isProjectQuery || projectLookup) {
     console.log('🔍 [AVA-CHAT] Detected project query or structured lookup, calling project lookup API');
