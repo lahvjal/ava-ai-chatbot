@@ -50,26 +50,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Format project data for AI response
     const formattedProjects = projects.map(project => ({
       id: project.id,
-      customer_name: project.customer_name,
       email: project.email,
-      address: project.address,
-      status: project.status,
-      progress_percentage: project.progress_percentage,
-      installation_date: project.installation_date,
-      completion_date: project.completion_date,
-      system_size: project.system_size,
-      project_type: project.project_type,
-      notes: project.notes,
+      project_id: project.project_id,
+      milestone: project.milestone,
+      raw_payload: project.raw_payload,
+      parsed_payload: project.parsed_payload,
       created_at: project.created_at,
-      updated_at: project.updated_at,
-      parsed_payload: (project as any).parsed_payload // Include the parsed raw_payload data
+      updated_at: project.updated_at
     }));
 
     console.log('📤 [PROJECT-LOOKUP] Returning response:', {
       count: formattedProjects.length,
-      projectIds: formattedProjects.map(p => p.id),
-      customerNames: formattedProjects.map(p => p.customer_name),
-      statuses: formattedProjects.map(p => p.status),
+      projectIds: formattedProjects.map(p => p.project_id),
+      emails: formattedProjects.map(p => p.email),
+      milestones: formattedProjects.map(p => p.milestone),
       hasParsedPayload: formattedProjects.map(p => !!p.parsed_payload)
     });
 

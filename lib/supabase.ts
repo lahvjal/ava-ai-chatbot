@@ -29,20 +29,13 @@ export const supabaseAdmin = supabaseServiceKey
 // Types for project data
 export interface Project {
   id: string;
-  customer_name: string;
-  email?: string;
-  customer_phone?: string;
-  address: string;
-  status: string;
-  progress_percentage: number;
-  installation_date?: string;
-  completion_date?: string;
-  system_size?: number;
-  project_type?: string;
-  notes?: string;
-  raw_payload?: any; // JSON data from Podio
+  email: string;
+  project_id: string;
+  milestone: string;
+  raw_payload: any; // JSON data from Podio containing address and other details
   created_at: string;
   updated_at: string;
+  parsed_payload?: any; // Parsed version of raw_payload
 }
 
 // Database functions for project queries
@@ -89,7 +82,7 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
 
   const { data, error } = await supabaseAdmin
     .from('podio_data')
-    .select('*, raw_payload')
+    .select('id, email, project_id, milestone, raw_payload, created_at, updated_at')
     .eq('email', email);
   
   if (error) {
@@ -101,12 +94,11 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
     count: data?.length || 0,
     records: data?.map(p => ({
       id: p.id,
-      customer_name: p.customer_name,
       email: p.email,
-      status: p.status,
-      progress_percentage: p.progress_percentage,
-      has_raw_payload: !!p.raw_payload
-    })) || []
+      project_id: p.project_id,
+      milestone: p.milestone,
+      hasRawPayload: !!p.raw_payload
+    }))
   });
   
   // Parse raw_payload JSON data for each project
@@ -139,14 +131,14 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
 export async function searchPodioData(searchTerm: string): Promise<Project[]> {
   console.log('🔍 [SUPABASE] Searching podio_data with term:', {
     searchTerm: `"${searchTerm}"`,
-    searchFields: ['email', 'address', 'notes'],
+    searchFields: ['email', 'project_id', 'milestone'],
     timestamp: new Date().toISOString()
   });
 
   const { data, error } = await supabaseAdmin
     .from('podio_data')
-    .select('*, raw_payload')
-    .or(`email.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`)
+    .select('id, email, project_id, milestone, raw_payload, created_at, updated_at')
+    .or(`email.ilike.%${searchTerm}%,project_id.ilike.%${searchTerm}%,milestone.ilike.%${searchTerm}%`)
     .order('created_at', { ascending: false });
   
   if (error) {
@@ -159,12 +151,10 @@ export async function searchPodioData(searchTerm: string): Promise<Project[]> {
     count: data?.length || 0,
     records: data?.map(p => ({
       id: p.id,
-      customer_name: p.customer_name,
       email: p.email,
-      address: p.address,
-      status: p.status,
-      progress_percentage: p.progress_percentage,
-      has_raw_payload: !!p.raw_payload
+      project_id: p.project_id,
+      milestone: p.milestone,
+      hasRawPayload: !!p.raw_payload
     })) || []
   });
 
