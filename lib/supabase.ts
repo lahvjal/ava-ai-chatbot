@@ -47,9 +47,12 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
     timestamp: new Date().toISOString()
   });
 
-  // Use authenticated client with user session
-  const authenticatedClient = userSession ? 
-    createClient(
+  // Use authenticated client with user session or fallback to service role for production
+  let authenticatedClient;
+  
+  if (userSession) {
+    // Try authenticated client first
+    authenticatedClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
@@ -59,12 +62,23 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
           }
         }
       }
-    ) : supabase;
+    );
+  } else if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    // Fallback to service role for server-side access
+    authenticatedClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+  } else {
+    // Last resort: use anon client
+    authenticatedClient = supabase;
+  }
 
   console.log('🔧 [SUPABASE] Using client:', {
     hasUserSession: !!userSession,
-    usingAuthenticatedClient: !!userSession,
-    clientType: userSession ? 'authenticated' : 'anon'
+    hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    clientType: userSession ? 'authenticated' : (process.env.SUPABASE_SERVICE_ROLE_KEY ? 'service_role' : 'anon'),
+    environment: process.env.NODE_ENV || 'development'
   });
 
   // First, let's check if the table exists and what data is in it
