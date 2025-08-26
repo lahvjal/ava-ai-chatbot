@@ -2,11 +2,30 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getProjectByEmail, searchPodioData, Project } from '../../lib/supabase';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Immediate logging to catch all requests
+  console.log('🚀 [PROJECT-LOOKUP] Handler started:', {
+    method: req.method,
+    hasBody: !!req.body,
+    bodyKeys: req.body ? Object.keys(req.body) : [],
+    environment: process.env.NODE_ENV,
+    isVercel: !!process.env.VERCEL,
+    timestamp: new Date().toISOString()
+  });
+
   if (req.method !== 'POST') {
+    console.log('❌ [PROJECT-LOOKUP] Method not allowed:', req.method);
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const { query, email, sessionToken } = req.body;
+  
+  console.log('📋 [PROJECT-LOOKUP] Request body parsed:', {
+    hasQuery: !!query,
+    hasEmail: !!email,
+    hasSessionToken: !!sessionToken,
+    queryLength: query?.length || 0,
+    sessionTokenLength: sessionToken?.length || 0
+  });
   
   // Extract email from session token if not provided directly
   // Extract user email from session token and validate JWT structure
@@ -104,7 +123,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       count: formattedProjects.length
     });
   } catch (error) {
-    console.error('❌ [PROJECT-LOOKUP] API error:', error);
+    console.error('❌ [PROJECT-LOOKUP] API error:', {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined,
+      environment: process.env.NODE_ENV,
+      isVercel: !!process.env.VERCEL,
+      timestamp: new Date().toISOString()
+    });
     res.status(500).json({ error: 'Failed to lookup project data' });
   }
 }

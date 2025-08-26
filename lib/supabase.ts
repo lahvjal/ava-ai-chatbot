@@ -43,7 +43,8 @@ export interface Project {
 
 // Database functions for project queries
 export async function getProjectByEmail(email: string, userSession?: any): Promise<Project[]> {
-  console.log('🔍 [SUPABASE] Searching podio_data by email:', {
+  // Force immediate logging to appear in Vercel
+  const logData = {
     email: `"${email}"`,
     emailLength: email.length,
     emailTrimmed: email.trim(),
@@ -52,7 +53,12 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
     environment: process.env.NODE_ENV,
     isVercel: !!process.env.VERCEL,
     timestamp: new Date().toISOString()
-  });
+  };
+  
+  console.log('🔍 [SUPABASE] Searching podio_data by email:', JSON.stringify(logData, null, 2));
+  
+  // Also try console.error to ensure visibility in Vercel logs
+  console.error('🔍 [SUPABASE-ERROR-LOG] Searching podio_data by email:', logData);
 
   // Use anon key with session context - Supabase handles authentication automatically
   console.log('🔐 [SUPABASE] Using anon key with session context');
