@@ -56,13 +56,10 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
   
-  // Use service role key in production for server-side operations
+  // Use JWT token authentication for all environments
   let clientToUse = authenticatedClient;
   
-  if (process.env.NODE_ENV === 'production' && supabaseServiceKey) {
-    console.log('🔑 [SUPABASE] Using service role key for production server-side access');
-    clientToUse = supabaseAdmin;
-  } else if (userSession && userSession.access_token) {
+  if (userSession && userSession.access_token) {
     console.log('🔑 [SUPABASE] Creating authenticated client with JWT token');
     
     // Create a new client with the JWT token in the Authorization header
@@ -88,14 +85,8 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
         details: userError,
         environment: process.env.NODE_ENV
       });
-      
-      // In production, fallback to service role if available
-      if (process.env.NODE_ENV === 'production' && supabaseServiceKey) {
-        console.log('🔄 [SUPABASE] Falling back to service role key in production');
-        clientToUse = supabaseAdmin;
-      } else {
-        clientToUse = authenticatedClient; // Fallback to anon client
-      }
+      console.log('⚠️ [SUPABASE] Using anon client as fallback');
+      clientToUse = authenticatedClient; // Fallback to anon client
     } else {
       console.log('✅ [SUPABASE] User authenticated successfully');
       console.log('👤 [SUPABASE] Current user:', {
