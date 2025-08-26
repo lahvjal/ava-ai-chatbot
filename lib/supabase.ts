@@ -56,10 +56,13 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
   
-  // Create authenticated client with JWT token in headers
+  // Use service role key in production for server-side operations
   let clientToUse = authenticatedClient;
   
-  if (userSession && userSession.access_token) {
+  if (process.env.NODE_ENV === 'production' && supabaseServiceKey) {
+    console.log('🔑 [SUPABASE] Using service role key for production server-side access');
+    clientToUse = supabaseAdmin;
+  } else if (userSession && userSession.access_token) {
     console.log('🔑 [SUPABASE] Creating authenticated client with JWT token');
     
     // Create a new client with the JWT token in the Authorization header
@@ -79,8 +82,20 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
     const { data: { user }, error: userError } = await clientToUse.auth.getUser();
     
     if (userError) {
-      console.error('❌ [SUPABASE] Failed to authenticate with token:', userError);
-      clientToUse = authenticatedClient; // Fallback to anon client
+      console.error('❌ [SUPABASE] Failed to authenticate with token:', {
+        error: userError.message,
+        code: userError.status,
+        details: userError,
+        environment: process.env.NODE_ENV
+      });
+      
+      // In production, fallback to service role if available
+      if (process.env.NODE_ENV === 'production' && supabaseServiceKey) {
+        console.log('🔄 [SUPABASE] Falling back to service role key in production');
+        clientToUse = supabaseAdmin;
+      } else {
+        clientToUse = authenticatedClient; // Fallback to anon client
+      }
     } else {
       console.log('✅ [SUPABASE] User authenticated successfully');
       console.log('👤 [SUPABASE] Current user:', {
