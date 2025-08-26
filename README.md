@@ -95,3 +95,4 @@ The API is rate-limited to 20 requests per minute per IP address. You can modify
 ## License
 
 MIT License - feel free to use this in your projects!
+# Deployment trigger
