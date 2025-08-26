@@ -114,7 +114,13 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
     count: allData?.length || 0,
     columns: allData?.[0] ? Object.keys(allData[0]) : [],
     sampleEmails: allData?.map(p => p.email) || [],
-    sampleData: allData?.slice(0, 2) || [],
+    emailComparison: allData?.map(p => ({
+      stored: p.email,
+      searching: email,
+      exactMatch: p.email === email,
+      caseInsensitiveMatch: p.email?.toLowerCase() === email?.toLowerCase(),
+      trimmedMatch: p.email?.trim() === email?.trim()
+    })) || [],
     searchingFor: email
   });
 
@@ -124,13 +130,28 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
     .select('*')
     .eq('email', email.trim());
   
-  // If no exact match, try case-insensitive search
+  // If no exact match, try multiple search strategies
   if (data && data.length === 0) {
-    console.log('🔍 [SUPABASE] No exact match, trying case-insensitive search...');
+    console.log('🔍 [SUPABASE] No exact match, trying alternative searches...');
+    
+    // Try case-insensitive search
     const { data: caseInsensitiveData, error: caseInsensitiveError } = await authenticatedClient
       .from('podio_data')
       .select('*')
       .ilike('email', email.trim());
+    
+    // Try searching without domain (just username part)
+    const emailUsername = email.split('@')[0];
+    const { data: usernameData, error: usernameError } = await authenticatedClient
+      .from('podio_data')
+      .select('*')
+      .ilike('email', `%${emailUsername}%`);
+    
+    console.log('🔍 [SUPABASE] Alternative search results:', {
+      caseInsensitive: caseInsensitiveData?.length || 0,
+      usernameSearch: usernameData?.length || 0,
+      emailUsername: emailUsername
+    });
     
     if (caseInsensitiveData && caseInsensitiveData.length > 0) {
       console.log('✅ [SUPABASE] Found match with case-insensitive search');
@@ -159,6 +180,35 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
       }) || [];
       
       return processedCaseInsensitiveData;
+    }
+    
+    // If case-insensitive didn't work, try username search
+    if (usernameData && usernameData.length > 0) {
+      console.log('✅ [SUPABASE] Found match with username search');
+      const processedUsernameData = usernameData?.map(project => {
+        let parsedPayload = null;
+        if (project.raw_payload) {
+          try {
+            parsedPayload = typeof project.raw_payload === 'string' 
+              ? JSON.parse(project.raw_payload) 
+              : project.raw_payload;
+          } catch (parseError) {
+            console.error('❌ [SUPABASE] Error parsing raw_payload:', parseError);
+          }
+        }
+
+        return {
+          id: project.id,
+          email: project.email,
+          project_id: project.project_id || project.id,
+          milestone: project.milestone || 'Unknown',
+          raw_payload: project.raw_payload,
+          updated_at: project.updated_at,
+          parsed_payload: parsedPayload
+        };
+      }) || [];
+      
+      return processedUsernameData;
     }
   }
   
