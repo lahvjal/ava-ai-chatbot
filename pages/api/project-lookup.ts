@@ -6,11 +6,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { query, email } = req.body;
+  const { query, email, sessionToken } = req.body;
+  
+  // Extract email from session token if not provided directly
+  let userEmail = email;
+  if (!userEmail && sessionToken) {
+    try {
+      // Decode JWT token to get user email
+      const payload = JSON.parse(Buffer.from(sessionToken.split('.')[1], 'base64').toString());
+      userEmail = payload.email;
+      console.log('🔐 [PROJECT-LOOKUP] Extracted email from session:', userEmail);
+    } catch (error) {
+      console.error('❌ [PROJECT-LOOKUP] Failed to decode session token:', error);
+    }
+  }
 
   console.log('🚀 [PROJECT-LOOKUP] API called with parameters:', {
     query: query ? `"${query}"` : 'not provided',
     email: email ? `"${email}"` : 'not provided',
+    userEmail: userEmail ? `"${userEmail}"` : 'not provided',
+    hasSessionToken: !!sessionToken,
     timestamp: new Date().toISOString()
   });
 
@@ -24,9 +39,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     let projects: Project[] = [];
 
-    if (email) {
+    if (userEmail) {
       console.log('📧 [PROJECT-LOOKUP] Looking up by email in podio_data');
-      projects = await getProjectByEmail(email);
+      projects = await getProjectByEmail(userEmail);
     } else if (query) {
       console.log('🔎 [PROJECT-LOOKUP] Performing general search in podio_data');
       projects = await searchPodioData(query);

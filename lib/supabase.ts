@@ -139,14 +139,14 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
 export async function searchPodioData(searchTerm: string): Promise<Project[]> {
   console.log('🔍 [SUPABASE] Searching podio_data with term:', {
     searchTerm: `"${searchTerm}"`,
-    searchFields: ['customer_name', 'address', 'notes'],
+    searchFields: ['email', 'address', 'notes'],
     timestamp: new Date().toISOString()
   });
 
   const { data, error } = await supabaseAdmin
     .from('podio_data')
     .select('*, raw_payload')
-    .ilike('customer_name', `%${searchTerm}%`)
+    .or(`email.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`)
     .order('created_at', { ascending: false });
   
   if (error) {

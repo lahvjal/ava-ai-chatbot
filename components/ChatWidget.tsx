@@ -379,4 +379,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       </div>
     </div>
   );
-}
+};
+
+export default ChatWidget;
