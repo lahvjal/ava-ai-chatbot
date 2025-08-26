@@ -41,7 +41,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (userEmail) {
       console.log('📧 [PROJECT-LOOKUP] Looking up by email in podio_data');
-      projects = await getProjectByEmail(userEmail);
+      // Pass the session token to use authenticated client
+      const userSession = sessionToken ? {
+        access_token: sessionToken
+      } : null;
+      projects = await getProjectByEmail(userEmail, userSession);
     } else if (query) {
       console.log('🔎 [PROJECT-LOOKUP] Performing general search in podio_data');
       projects = await searchPodioData(query);
@@ -55,7 +59,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       milestone: project.milestone,
       raw_payload: project.raw_payload,
       parsed_payload: project.parsed_payload,
-      created_at: project.created_at,
       updated_at: project.updated_at
     }));
 

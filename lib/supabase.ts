@@ -33,7 +33,6 @@ export interface Project {
   project_id: string;
   milestone: string;
   raw_payload: any; // JSON data from Podio containing address and other details
-  created_at: string;
   updated_at: string;
   parsed_payload?: any; // Parsed version of raw_payload
 }
@@ -42,48 +41,108 @@ export interface Project {
 export async function getProjectByEmail(email: string, userSession?: any): Promise<Project[]> {
   console.log('🔍 [SUPABASE] Searching podio_data by email:', {
     email: `"${email}"`,
+    emailLength: email.length,
+    emailTrimmed: email.trim(),
+    hasUserSession: !!userSession,
     timestamp: new Date().toISOString()
   });
 
-  // Test both anon and admin clients
-  console.log('🔧 [SUPABASE] Testing both clients...');
+  // Use authenticated client with user session
+  const authenticatedClient = userSession ? 
+    createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${userSession.access_token}`
+          }
+        }
+      }
+    ) : supabase;
+
+  console.log('🔧 [SUPABASE] Using client:', {
+    hasUserSession: !!userSession,
+    usingAuthenticatedClient: !!userSession,
+    clientType: userSession ? 'authenticated' : 'anon'
+  });
+
+  // First, let's check if the table exists and what data is in it
+  console.log('🔧 [SUPABASE] Testing table access...');
   
-  // Test admin client first
-  try {
-    const { data: adminData, error: adminError } = await supabaseAdmin
-      .from('podio_data')
-      .select('count', { count: 'exact', head: true });
-    
-    console.log('🔧 [SUPABASE] Admin client test:', {
-      usingAdmin: supabaseAdmin !== supabase,
-      canConnect: !adminError,
-      error: adminError?.message,
-      errorCode: adminError?.code,
-      totalRows: adminData
-    });
-  } catch (adminConnectionError) {
-    console.error('❌ [SUPABASE] Admin client failed:', adminConnectionError);
-  }
-
-  // Test anon client for comparison
-  try {
-    const { data: anonData, error: anonError } = await supabase
-      .from('podio_data')
-      .select('count', { count: 'exact', head: true });
-    
-    console.log('🔧 [SUPABASE] Anon client test:', {
-      canConnect: !anonError,
-      error: anonError?.message,
-      errorCode: anonError?.code
-    });
-  } catch (anonConnectionError) {
-    console.error('❌ [SUPABASE] Anon client failed:', anonConnectionError);
-  }
-
-  const { data, error } = await supabaseAdmin
+  // Try to get table info first
+  const { data: tableTest, error: tableError } = await authenticatedClient
     .from('podio_data')
-    .select('id, email, project_id, milestone, raw_payload, created_at, updated_at')
-    .eq('email', email);
+    .select('*')
+    .limit(1);
+  
+  if (tableError) {
+    console.error('❌ [SUPABASE] Table access error:', {
+      code: tableError.code,
+      message: tableError.message,
+      details: tableError.details,
+      hint: tableError.hint
+    });
+    return [];
+  }
+  
+  // Get all data to see what's actually in the table
+  const { data: allData, error: allError } = await authenticatedClient
+    .from('podio_data')
+    .select('*')
+    .limit(10);
+  
+  console.log('🔍 [SUPABASE] Table structure and sample data:', {
+    count: allData?.length || 0,
+    columns: allData?.[0] ? Object.keys(allData[0]) : [],
+    sampleEmails: allData?.map(p => p.email) || [],
+    sampleData: allData?.slice(0, 2) || [],
+    searchingFor: email
+  });
+
+  // Try exact match first with all columns
+  const { data, error } = await authenticatedClient
+    .from('podio_data')
+    .select('*')
+    .eq('email', email.trim());
+  
+  // If no exact match, try case-insensitive search
+  if (data && data.length === 0) {
+    console.log('🔍 [SUPABASE] No exact match, trying case-insensitive search...');
+    const { data: caseInsensitiveData, error: caseInsensitiveError } = await authenticatedClient
+      .from('podio_data')
+      .select('*')
+      .ilike('email', email.trim());
+    
+    if (caseInsensitiveData && caseInsensitiveData.length > 0) {
+      console.log('✅ [SUPABASE] Found match with case-insensitive search');
+      // Process the case-insensitive data the same way as exact match
+      const processedCaseInsensitiveData = caseInsensitiveData?.map(project => {
+        let parsedPayload = null;
+        if (project.raw_payload) {
+          try {
+            parsedPayload = typeof project.raw_payload === 'string' 
+              ? JSON.parse(project.raw_payload) 
+              : project.raw_payload;
+          } catch (parseError) {
+            console.error('❌ [SUPABASE] Error parsing raw_payload:', parseError);
+          }
+        }
+
+        return {
+          id: project.id,
+          email: project.email,
+          project_id: project.project_id || project.id,
+          milestone: project.milestone || 'Unknown',
+          raw_payload: project.raw_payload,
+          updated_at: project.updated_at,
+          parsed_payload: parsedPayload
+        };
+      }) || [];
+      
+      return processedCaseInsensitiveData;
+    }
+  }
   
   if (error) {
     console.error('❌ [SUPABASE] Error fetching from podio_data:', error);
@@ -92,12 +151,14 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
   
   console.log('✅ [SUPABASE] Query successful. Found records:', {
     count: data?.length || 0,
+    exactMatchFound: data?.length > 0,
     records: data?.map(p => ({
       id: p.id,
       email: p.email,
-      project_id: p.project_id,
-      milestone: p.milestone,
-      hasRawPayload: !!p.raw_payload
+      project_id: p.project_id || p.id,
+      milestone: p.milestone || 'Unknown',
+      hasRawPayload: !!p.raw_payload,
+      updated_at: p.updated_at
     }))
   });
   
@@ -137,9 +198,9 @@ export async function searchPodioData(searchTerm: string): Promise<Project[]> {
 
   const { data, error } = await supabaseAdmin
     .from('podio_data')
-    .select('id, email, project_id, milestone, raw_payload, created_at, updated_at')
+    .select('id, email, project_id, milestone, raw_payload, updated_at')
     .or(`email.ilike.%${searchTerm}%,project_id.ilike.%${searchTerm}%,milestone.ilike.%${searchTerm}%`)
-    .order('created_at', { ascending: false });
+    .order('updated_at', { ascending: false });
   
   if (error) {
     console.error('❌ [SUPABASE] Error searching podio_data:', error);
