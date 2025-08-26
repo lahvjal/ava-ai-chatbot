@@ -18,7 +18,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Server-side client with service role key (bypasses RLS)
 export const supabaseAdmin = supabaseServiceKey 
-  ? createClient(supabaseUrl, supabaseServiceKey)
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
   : supabase;
 
 // Types for project data
