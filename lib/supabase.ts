@@ -45,7 +45,7 @@ export async function getProjectByEmail(email: string): Promise<Project[]> {
     timestamp: new Date().toISOString()
   });
 
-  // Test Supabase client initialization
+  // Test Supabase client initialization with detailed error logging
   try {
     const { data: testData, error: testError } = await supabase
       .from('podio_data')
@@ -54,8 +54,20 @@ export async function getProjectByEmail(email: string): Promise<Project[]> {
     console.log('🔧 [SUPABASE] Connection test:', {
       canConnect: !testError,
       error: testError?.message,
+      errorCode: testError?.code,
+      errorDetails: testError?.details,
+      errorHint: testError?.hint,
       totalRows: testData
     });
+
+    if (testError) {
+      console.error('❌ [SUPABASE] Detailed error:', {
+        message: testError.message,
+        code: testError.code,
+        details: testError.details,
+        hint: testError.hint
+      });
+    }
   } catch (connectionError) {
     console.error('❌ [SUPABASE] Connection failed:', connectionError);
   }
