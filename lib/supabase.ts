@@ -59,10 +59,26 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
   // Set the session if we have a valid JWT token
   if (userSession && userSession.access_token) {
     console.log('🔑 [SUPABASE] Setting user session on client');
-    await authenticatedClient.auth.setSession({
+    const { error: sessionError } = await authenticatedClient.auth.setSession({
       access_token: userSession.access_token,
       refresh_token: userSession.refresh_token || ''
     });
+    
+    if (sessionError) {
+      console.error('❌ [SUPABASE] Session setting failed:', sessionError);
+    } else {
+      console.log('✅ [SUPABASE] Session set successfully');
+      
+      // Verify the session is active
+      const { data: { user }, error: userError } = await authenticatedClient.auth.getUser();
+      console.log('👤 [SUPABASE] Current user:', {
+        userId: user?.id,
+        userEmail: user?.email,
+        userRole: user?.role,
+        isAuthenticated: !!user,
+        error: userError?.message
+      });
+    }
   } else {
     console.log('⚠️ [SUPABASE] No user session available - using anon access only');
   }
@@ -77,6 +93,21 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
 
   // First, let's check if the table exists and what data is in it
   console.log('🔧 [SUPABASE] Testing table access...');
+  
+  // Test RLS policies and table access
+  console.log('🔒 [SUPABASE] Testing RLS and table access...');
+  
+  // First, try a simple count to test basic access
+  const { count, error: countError } = await authenticatedClient
+    .from('podio_data')
+    .select('*', { count: 'exact', head: true });
+    
+  console.log('📊 [SUPABASE] Table count test:', {
+    totalRows: count,
+    hasError: !!countError,
+    errorCode: countError?.code,
+    errorMessage: countError?.message
+  });
   
   // Try to get table info first
   const { data: tableTest, error: tableError } = await authenticatedClient
