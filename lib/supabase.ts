@@ -47,25 +47,24 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
     timestamp: new Date().toISOString()
   });
 
-  // Only use authenticated client with user session - no service role fallback
-  let authenticatedClient;
+  // Use anon key with session context - Supabase handles authentication automatically
+  console.log('🔐 [SUPABASE] Using anon key with session context');
   
+  // Create client with anon key - session will be set separately
+  const authenticatedClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+  
+  // Set the session if we have a valid JWT token
   if (userSession && userSession.access_token) {
-    console.log('🔐 [SUPABASE] Creating authenticated client with session token');
-    authenticatedClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${userSession.access_token}`
-          }
-        }
-      }
-    );
+    console.log('🔑 [SUPABASE] Setting user session on client');
+    await authenticatedClient.auth.setSession({
+      access_token: userSession.access_token,
+      refresh_token: userSession.refresh_token || ''
+    });
   } else {
-    console.log('⚠️ [SUPABASE] No valid user session, using anon client (will likely fail with RLS)');
-    authenticatedClient = supabase;
+    console.log('⚠️ [SUPABASE] No user session available - using anon access only');
   }
 
   console.log('🔧 [SUPABASE] Using client:', {
