@@ -13,8 +13,15 @@ console.log('🔧 [SUPABASE] Environment comparison:', {
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ugolpzpaykhrumlwcpue.supabase.co';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnb2xwenBheWtocnVtbHdjcHVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDYxMjQsImV4cCI6MjA1OTYyMjEyNH0.6QBjm_II-N1NcZQnzeF5QXwDWMUp8s4zuHX5AXgRdG0';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Client for public operations (anon key)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Server-side client with service role key (bypasses RLS)
+export const supabaseAdmin = supabaseServiceKey 
+  ? createClient(supabaseUrl, supabaseServiceKey)
+  : supabase;
 
 // Types for project data
 export interface Project {
@@ -69,7 +76,7 @@ export async function getProjectByEmail(email: string): Promise<Project[]> {
     console.error('❌ [SUPABASE] Connection failed:', connectionError);
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('podio_data')
     .select('*, raw_payload')
     .eq('email', email);
@@ -125,10 +132,10 @@ export async function searchPodioData(searchTerm: string): Promise<Project[]> {
     timestamp: new Date().toISOString()
   });
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('podio_data')
     .select('*, raw_payload')
-    .or(`customer_name.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`)
+    .ilike('customer_name', `%${searchTerm}%`)
     .order('created_at', { ascending: false });
   
   if (error) {
