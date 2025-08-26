@@ -31,6 +31,21 @@ export async function getProjectByEmail(email: string): Promise<Project[]> {
     timestamp: new Date().toISOString()
   });
 
+  // Test Supabase client initialization
+  try {
+    const { data: testData, error: testError } = await supabase
+      .from('podio_data')
+      .select('count', { count: 'exact', head: true });
+    
+    console.log('🔧 [SUPABASE] Connection test:', {
+      canConnect: !testError,
+      error: testError?.message,
+      totalRows: testData
+    });
+  } catch (connectionError) {
+    console.error('❌ [SUPABASE] Connection failed:', connectionError);
+  }
+
   const { data, error } = await supabase
     .from('podio_data')
     .select('*, raw_payload')
