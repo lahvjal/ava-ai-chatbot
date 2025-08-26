@@ -56,27 +56,38 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
   
-  // Set the session if we have a valid JWT token
+  // Create authenticated client with JWT token in headers
+  let clientToUse = authenticatedClient;
+  
   if (userSession && userSession.access_token) {
-    console.log('🔑 [SUPABASE] Setting user session on client');
-    const { error: sessionError } = await authenticatedClient.auth.setSession({
-      access_token: userSession.access_token,
-      refresh_token: userSession.refresh_token || ''
-    });
+    console.log('🔑 [SUPABASE] Creating authenticated client with JWT token');
     
-    if (sessionError) {
-      console.error('❌ [SUPABASE] Session setting failed:', sessionError);
+    // Create a new client with the JWT token in the Authorization header
+    clientToUse = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${userSession.access_token}`
+          }
+        }
+      }
+    );
+    
+    // Verify the token works by getting user info
+    const { data: { user }, error: userError } = await clientToUse.auth.getUser();
+    
+    if (userError) {
+      console.error('❌ [SUPABASE] Failed to authenticate with token:', userError);
+      clientToUse = authenticatedClient; // Fallback to anon client
     } else {
-      console.log('✅ [SUPABASE] Session set successfully');
-      
-      // Verify the session is active
-      const { data: { user }, error: userError } = await authenticatedClient.auth.getUser();
+      console.log('✅ [SUPABASE] User authenticated successfully');
       console.log('👤 [SUPABASE] Current user:', {
         userId: user?.id,
         userEmail: user?.email,
         userRole: user?.role,
-        isAuthenticated: !!user,
-        error: userError?.message
+        isAuthenticated: !!user
       });
     }
   } else {
@@ -98,7 +109,7 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
   console.log('🔒 [SUPABASE] Testing RLS and table access...');
   
   // First, try a simple count to test basic access
-  const { count, error: countError } = await authenticatedClient
+  const { count, error: countError } = await clientToUse
     .from('podio_data')
     .select('*', { count: 'exact', head: true });
     
@@ -110,7 +121,7 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
   });
   
   // Try to get table info first
-  const { data: tableTest, error: tableError } = await authenticatedClient
+  const { data: tableTest, error: tableError } = await clientToUse
     .from('podio_data')
     .select('*')
     .limit(1);
@@ -136,7 +147,7 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
   }
   
   // Get all data to see what's actually in the table
-  const { data: allData, error: allError } = await authenticatedClient
+  const { data: allData, error: allError } = await clientToUse
     .from('podio_data')
     .select('*')
     .limit(10);
@@ -156,7 +167,7 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
   });
 
   // Try exact match first with all columns
-  const { data, error } = await authenticatedClient
+  const { data, error } = await clientToUse
     .from('podio_data')
     .select('*')
     .eq('email', email.trim());
@@ -166,14 +177,14 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
     console.log('🔍 [SUPABASE] No exact match, trying alternative searches...');
     
     // Try case-insensitive search
-    const { data: caseInsensitiveData, error: caseInsensitiveError } = await authenticatedClient
+    const { data: caseInsensitiveData, error: caseInsensitiveError } = await clientToUse
       .from('podio_data')
       .select('*')
       .ilike('email', email.trim());
     
     // Try searching without domain (just username part)
     const emailUsername = email.split('@')[0];
-    const { data: usernameData, error: usernameError } = await authenticatedClient
+    const { data: usernameData, error: usernameError } = await clientToUse
       .from('podio_data')
       .select('*')
       .ilike('email', `%${emailUsername}%`);
