@@ -29,8 +29,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Message is required' });
   }
 
-  // Check if the user is asking about project status or progress
-  const isProjectQuery = message.toLowerCase().includes('project') || 
+  // For authenticated users, always fetch project data to answer any questions
+  const authHeader = req.headers.authorization;
+  const hasAuth = !!authHeader;
+  const isProjectQuery = hasAuth || message.toLowerCase().includes('project') || 
                          message.toLowerCase().includes('status') || 
                          message.toLowerCase().includes('progress') ||
                          message.toLowerCase().includes('installation') ||
@@ -39,6 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   console.log('🤖 [AVA-CHAT] Processing message:', {
     message: `"${message}"`,
+    hasAuth: hasAuth,
     isProjectQuery: isProjectQuery,
     hasProjectLookup: !!projectLookup,
     projectLookupData: projectLookup,
@@ -50,12 +53,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     hasOpenAI: !!process.env.OPENAI_API_KEY,
     hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    hasAuthHeader: !!req.headers.authorization,
+    authHeaderPreview: req.headers.authorization ? `${req.headers.authorization.slice(0, 20)}...` : 'none'
   });
 
   let projectData = null;
   if (isProjectQuery || projectLookup) {
-    console.log('🔍 [AVA-CHAT] Detected project query or structured lookup, calling project lookup API');
+    console.log('🔍 [AVA-CHAT] Fetching project data for authenticated user or project query');
     try {
       // Get user session from request headers
       const authHeader = req.headers.authorization;
@@ -105,17 +110,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error('❌ [AVA-CHAT] Project lookup failed:', error);
     }
   } else {
-    console.log('💬 [AVA-CHAT] General solar query, skipping project lookup');
+    console.log('💬 [AVA-CHAT] No authentication header found, skipping project lookup');
   }
 
   // Extract user email from session token for AI context
   let userEmail = null;
-  const authHeader = req.headers.authorization;
-  const sessionToken = authHeader?.replace('Bearer ', '');
+  const authHeaderForAI = req.headers.authorization;
+  const sessionTokenForAI = authHeaderForAI?.replace('Bearer ', '');
   
-  if (sessionToken) {
+  if (sessionTokenForAI) {
     try {
-      const payload = JSON.parse(Buffer.from(sessionToken.split('.')[1], 'base64').toString());
+      const payload = JSON.parse(Buffer.from(sessionTokenForAI.split('.')[1], 'base64').toString());
       userEmail = payload.email;
       console.log('🔐 [AVA-CHAT] Extracted user email for AI context:', userEmail);
     } catch (error) {
