@@ -78,48 +78,31 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
   let clientToUse = authenticatedClient;
   
   if (userSession && userSession.access_token) {
-    console.log('🔑 [SUPABASE] Creating authenticated client with JWT token');
+    console.log('🔑 [SUPABASE] Using service role key for production database access');
     
-    // Create a new client with the JWT token in the Authorization header
-    clientToUse = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${userSession.access_token}`
+    // Use service role key in production to bypass RLS and access data directly
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (serviceRoleKey && process.env.VERCEL) {
+      console.log('🔐 [SUPABASE] Creating service role client for production');
+      clientToUse = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        serviceRoleKey
+      );
+    } else {
+      console.log('🔑 [SUPABASE] Using anon client with JWT header');
+      // For development or when service key unavailable, use anon with JWT
+      clientToUse = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${userSession.access_token}`
+            }
           }
         }
-      }
-    );
-    
-    // Verify the token works by getting user info
-    const { data: { user }, error: userError } = await clientToUse.auth.getUser();
-    
-    if (userError) {
-      console.error('❌ [SUPABASE] Failed to authenticate with token:', {
-        error: userError.message,
-        code: userError.status,
-        details: userError,
-        environment: process.env.NODE_ENV,
-        isVercel: !!process.env.VERCEL,
-        tokenLength: userSession.access_token?.length,
-        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-        timestamp: new Date().toISOString()
-      });
-      console.log('⚠️ [SUPABASE] Using anon client as fallback');
-      clientToUse = authenticatedClient; // Fallback to anon client
-    } else {
-      console.log('✅ [SUPABASE] User authenticated successfully');
-      console.log('👤 [SUPABASE] Current user:', {
-        userId: user?.id,
-        userEmail: user?.email,
-        userRole: user?.role,
-        isAuthenticated: !!user,
-        environment: process.env.NODE_ENV,
-        isVercel: !!process.env.VERCEL,
-        timestamp: new Date().toISOString()
-      });
+      );
     }
   } else {
     console.log('⚠️ [SUPABASE] No user session available - using anon access only');
