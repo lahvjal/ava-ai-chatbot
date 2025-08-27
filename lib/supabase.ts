@@ -10,6 +10,11 @@ console.log('🔧 [SUPABASE] Environment debug:', {
   supabaseUrlLength: process.env.NEXT_PUBLIC_SUPABASE_URL?.length,
   anonKeyLength: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length,
   serviceKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length,
+  // Show actual values for debugging (first/last chars only for security)
+  supabaseUrlPreview: process.env.NEXT_PUBLIC_SUPABASE_URL ? 
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL.substring(0, 20)}...${process.env.NEXT_PUBLIC_SUPABASE_URL.slice(-10)}` : 'undefined',
+  anonKeyPreview: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 
+    `${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.substring(0, 20)}...${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.slice(-10)}` : 'undefined',
   timestamp: new Date().toISOString()
 });
 
