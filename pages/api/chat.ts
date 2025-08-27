@@ -61,11 +61,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const authHeader = req.headers.authorization;
       const sessionToken = authHeader?.replace('Bearer ', '');
       
+      // Extract email from session token for project lookup
+      let userEmailFromToken = null;
+      if (sessionToken) {
+        try {
+          const payload = JSON.parse(Buffer.from(sessionToken.split('.')[1], 'base64').toString());
+          userEmailFromToken = payload.email;
+        } catch (error) {
+          console.error('❌ [AVA-CHAT] Failed to decode session token for project lookup:', error);
+        }
+      }
+
       const lookupPayload = projectLookup ? {
-        email: projectLookup.email,
+        email: projectLookup.email || userEmailFromToken,
         query: message,
         sessionToken: sessionToken
       } : {
+        email: userEmailFromToken,
         query: message,
         sessionToken: sessionToken
       };
