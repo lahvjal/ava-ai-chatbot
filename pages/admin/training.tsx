@@ -13,14 +13,7 @@ interface SectionDoc {
   updated_by?: string
 }
 
-const isAdminClient = (email?: string | null) => {
-  if (!email) return false
-  const list = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean)
-  return list.includes(email.toLowerCase())
-}
+// client env-based admin check removed; we trust JWT metadata and server check
 
 export default function TrainingAdminPage() {
   const router = useRouter()
@@ -44,8 +37,16 @@ export default function TrainingAdminPage() {
   const onLogout = async () => {
     try {
       await supabase.auth.signOut()
+      // extra safety: clear any lingering storage and reload
+      try { localStorage.clear() } catch {}
+      try { sessionStorage.clear() } catch {}
     } finally {
-      router.replace('/admin/login')
+      // Use hard navigation to avoid race with useEffect redirects
+      if (typeof window !== 'undefined') {
+        window.location.replace('/admin/login?logged_out=1')
+      } else {
+        router.replace('/admin/login')
+      }
     }
   }
 
@@ -63,17 +64,25 @@ export default function TrainingAdminPage() {
         return
       }
 
-      // Ask server if this user is an admin (checks public.admins)
+      // Determine admin from JWT immediately (app_metadata.is_admin or user_metadata.user_type === 'admin')
       try {
+        const user: any = sessionData.session?.user
+        const am = user?.app_metadata || {}
+        const um = user?.user_metadata || user?.raw_user_meta_data || {}
+        const isAdminJwt = (am?.is_admin === true) || (typeof um?.user_type === 'string' && um.user_type.toLowerCase() === 'admin')
+        if (isAdminJwt) setServerAdmin(true)
+        // Also confirm with server endpoint for consistency
         const token = sessionData.session?.access_token
-        const res = await fetch('/api/auth/me', {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        })
-        const j = await res.json()
-        if (res.ok) setServerAdmin(!!j.isDbAdmin)
+        if (token) {
+          const res = await fetch('/api/auth/me', {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          })
+          const j = await res.json()
+          if (res.ok && typeof j.isDbAdmin === 'boolean') setServerAdmin(prev => prev || j.isDbAdmin)
+        }
       } catch {}
 
       try {
@@ -162,7 +171,7 @@ export default function TrainingAdminPage() {
     }
   }
 
-  const adminAllowed = serverAdmin || isAdminClient(userEmail)
+  const adminAllowed = serverAdmin
 
   function prettyLabel(k: SectionDoc['section']) {
     return k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -233,7 +242,7 @@ export default function TrainingAdminPage() {
 
         {!adminAllowed && (
           <div className="p-4 border border-yellow-300 bg-yellow-50 rounded mb-6 text-sm text-yellow-900">
-            Admin access required. Ask a team member to add your email to NEXT_PUBLIC_ADMIN_EMAILS in the environment.
+            Admin access required. Please sign in with an admin account.
           </div>
         )}
 

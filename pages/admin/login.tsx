@@ -106,7 +106,7 @@ export default function AdminLoginPage() {
         </div>
 
         <div className="mt-6 text-sm text-gray-600">
-          <Link href="/admin/training" className="text-blue-600 hover:underline">Back to Admin Training</Link>
+          <Link href="/" className="text-blue-600 hover:underline">Back to Ava</Link>
         </div>
       </main>
     </div>

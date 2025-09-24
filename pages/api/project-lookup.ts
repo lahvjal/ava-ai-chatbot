@@ -31,8 +31,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     sessionTokenLength: sessionToken?.length || 0
   });
   
-  // Extract user email from session token and validate JWT structure
+  // Extract user email and admin flags from session token and validate JWT structure
   let userEmailFromToken: string | null = null;
+  let isAdminJwt = false;
   if (sessionToken) {
     try {
       console.log('🔍 [PROJECT-LOOKUP] Session token received:', {
@@ -44,6 +45,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Decode JWT token to get user email
       const payload = JSON.parse(Buffer.from(sessionToken.split('.')[1], 'base64').toString());
       userEmailFromToken = payload.email;
+      // Prefer admin from JWT metadata
+      const am = payload?.app_metadata || {};
+      const um = payload?.user_metadata || payload?.raw_user_meta_data || {};
+      if (am?.is_admin === true) isAdminJwt = true;
+      if (typeof um?.user_type === 'string' && um.user_type.toLowerCase() === 'admin') isAdminJwt = true;
       
       console.log('🔐 [PROJECT-LOOKUP] JWT payload decoded:', {
         email: userEmailFromToken,
@@ -85,9 +91,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? email.trim().toLowerCase()
       : (userEmailFromToken ? String(userEmailFromToken).trim().toLowerCase() : null);
 
-    // Determine if caller is admin (DB check)
-    let isDbAdmin = false;
-    if (userEmailFromToken) {
+    // Determine if caller is admin (JWT preferred, DB fallback)
+    let isDbAdmin = isAdminJwt;
+    if (!isDbAdmin && userEmailFromToken) {
       try {
         const { data: adminRow } = await supabaseAdmin
           .from('admins')

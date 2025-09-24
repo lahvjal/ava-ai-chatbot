@@ -11,23 +11,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       : undefined
 
     let callerEmail: string | null = null
+    let isAdminJwt = false
     if (token) {
       try {
         const { data } = await supabase.auth.getUser(token)
-        callerEmail = data?.user?.email ?? null
+        const user = data?.user as any
+        callerEmail = user?.email ?? null
+        const am = user?.app_metadata || {}
+        const um = user?.user_metadata || user?.raw_user_meta_data || {}
+        if (am?.is_admin === true) isAdminJwt = true
+        if (typeof um?.user_type === 'string' && um.user_type.toLowerCase() === 'admin') isAdminJwt = true
       } catch {
         // noop
       }
     }
 
-    // Admin guard via DB (public.admins)
+    // Admin guard: prefer JWT metadata, fallback to DB (public.admins)
     if (!callerEmail) return res.status(401).json({ error: 'Not authenticated' })
-    const { data: adminRow } = await supabaseAdmin
-      .from('admins')
-      .select('email')
-      .eq('email', callerEmail)
-      .maybeSingle()
-    if (!adminRow) return res.status(403).json({ error: 'Admin required' })
+    if (!isAdminJwt) {
+      const { data: adminRow } = await supabaseAdmin
+        .from('admins')
+        .select('email')
+        .eq('email', callerEmail)
+        .maybeSingle()
+      if (!adminRow) return res.status(403).json({ error: 'Admin required' })
+    }
 
     const search = (req.query.search as string | undefined)?.trim().toLowerCase() || ''
     const page = Math.max(1, parseInt(String(req.query.page || '1'), 10))

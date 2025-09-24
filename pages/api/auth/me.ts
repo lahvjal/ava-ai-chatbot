@@ -9,10 +9,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       : undefined
 
     let email: string | null = null
+    let isAdminJwt = false
     if (token) {
       try {
         const { data } = await supabase.auth.getUser(token)
-        email = data?.user?.email ?? null
+        const user = data?.user as any
+        email = user?.email ?? null
+        // Prefer JWT metadata: app_metadata or user_metadata
+        const am = user?.app_metadata || {}
+        const um = user?.user_metadata || user?.raw_user_meta_data || {}
+        if (am?.is_admin === true) isAdminJwt = true
+        if (typeof um?.user_type === 'string' && um.user_type.toLowerCase() === 'admin') isAdminJwt = true
       } catch (e) {
         // ignore
       }
@@ -21,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Compute isDbAdmin by checking public.admins for this email.
     // Prefer service role client, but fall back to anon client if missing (admins table has RLS disabled by default).
     let isDbAdmin = false
-    if (email) {
+    if (!isAdminJwt && email) {
       try {
         const client = process.env.SUPABASE_SERVICE_ROLE_KEY ? supabaseAdmin : supabase
         const { data: row } = await client
@@ -35,7 +42,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    return res.status(200).json({ email, isAuthenticated: !!email, isDbAdmin })
+    const isAdmin = isAdminJwt || isDbAdmin
+    return res.status(200).json({ email, isAuthenticated: !!email, isDbAdmin: isAdmin })
   } catch (err) {
     console.error('❌ [/api/auth/me] Unexpected error:', err)
     return res.status(500).json({ error: 'Unexpected server error' })
