@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { supabase } from '../../lib/supabase'
 
@@ -21,6 +22,7 @@ const isAdminClient = (email?: string | null) => {
 }
 
 export default function TrainingAdminPage() {
+  const router = useRouter()
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [sections, setSections] = useState<Record<string, SectionDoc>>({})
   const [active, setActive] = useState<SectionDoc['section']>('policies')
@@ -30,6 +32,15 @@ export default function TrainingAdminPage() {
   const [saving, setSaving] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [serverAdmin, setServerAdmin] = useState<boolean>(false)
+
+  const onLogout = async () => {
+    try {
+      await supabase.auth.signOut()
+    } finally {
+      router.replace('/admin/login')
+    }
+  }
 
   useEffect(() => {
     const init = async () => {
@@ -38,6 +49,25 @@ export default function TrainingAdminPage() {
       const { data: sessionData } = await supabase.auth.getSession()
       const email = sessionData.session?.user?.email ?? null
       setUserEmail(email)
+
+      // If not authenticated, redirect to login
+      if (!sessionData.session) {
+        router.replace('/admin/login')
+        return
+      }
+
+      // Ask server if this user is an admin (checks public.admins)
+      try {
+        const token = sessionData.session?.access_token
+        const res = await fetch('/api/auth/me', {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        })
+        const j = await res.json()
+        if (res.ok) setServerAdmin(!!j.isDbAdmin)
+      } catch {}
 
       try {
         const res = await fetch('/api/training', {
@@ -93,7 +123,7 @@ export default function TrainingAdminPage() {
     }
   }
 
-  const adminAllowed = isAdminClient(userEmail)
+  const adminAllowed = serverAdmin || isAdminClient(userEmail)
 
   function prettyLabel(k: SectionDoc['section']) {
     return k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -118,11 +148,19 @@ export default function TrainingAdminPage() {
         </p>
 
         {/* Auth status */}
-        <div className="mb-4">
+        <div className="mb-4 flex items-center justify-between">
           {userEmail ? (
             <div className="text-sm text-gray-700">Signed in as <span className="font-medium">{userEmail}</span></div>
           ) : (
             <div className="text-sm text-gray-500">Not signed in. Please sign in via the widget to gain admin access.</div>
+          )}
+          {userEmail && (
+            <button
+              onClick={onLogout}
+              className="text-sm px-3 py-1 border border-gray-300 rounded bg-white hover:bg-gray-50 text-gray-700"
+            >
+              Logout
+            </button>
           )}
         </div>
 
