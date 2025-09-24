@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getProjectByEmail, searchPodioData, Project } from '../../lib/supabase';
+import { getProjectByEmail, searchPodioData, Project, supabaseAdmin } from '../../lib/supabase';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Immediate logging to catch all requests
@@ -17,7 +17,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { query, email, sessionToken } = req.body;
+  const { query, email } = req.body;
+  let sessionToken: string | undefined = req.body?.sessionToken;
+  if (!sessionToken && req.headers.authorization?.startsWith('Bearer ')) {
+    sessionToken = req.headers.authorization.substring('Bearer '.length);
+  }
   
   console.log('📋 [PROJECT-LOOKUP] Request body parsed:', {
     hasQuery: !!query,
@@ -27,9 +31,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     sessionTokenLength: sessionToken?.length || 0
   });
   
-  // Extract email from session token if not provided directly
   // Extract user email from session token and validate JWT structure
-  let userEmail = null;
+  let userEmailFromToken: string | null = null;
   if (sessionToken) {
     try {
       console.log('🔍 [PROJECT-LOOKUP] Session token received:', {
@@ -40,10 +43,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       // Decode JWT token to get user email
       const payload = JSON.parse(Buffer.from(sessionToken.split('.')[1], 'base64').toString());
-      userEmail = payload.email;
+      userEmailFromToken = payload.email;
       
       console.log('🔐 [PROJECT-LOOKUP] JWT payload decoded:', {
-        email: userEmail,
+        email: userEmailFromToken,
         sub: payload.sub,
         role: payload.role,
         aud: payload.aud,
@@ -59,7 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   console.log('🚀 [PROJECT-LOOKUP] API called with parameters:', {
     query: query ? `"${query}"` : 'not provided',
     email: email ? `"${email}"` : 'not provided',
-    userEmail: userEmail ? `"${userEmail}"` : 'not provided',
+    userEmailFromToken: userEmailFromToken ? `"${userEmailFromToken}"` : 'not provided',
     hasSessionToken: !!sessionToken,
     sessionTokenLength: sessionToken?.length || 0,
     environment: process.env.NODE_ENV,
@@ -77,13 +80,90 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     let projects: Project[] = [];
 
-    if (userEmail) {
-      console.log('📧 [PROJECT-LOOKUP] Looking up by email in podio_data');
-      // Pass the session token to use authenticated client
-      const userSession = sessionToken ? {
-        access_token: sessionToken
-      } : null;
-      projects = await getProjectByEmail(userEmail, userSession);
+    // Determine effective email: prefer explicit 'email' (e.g., admin impersonation), otherwise fall back to token email
+    const effectiveEmail: string | null = (typeof email === 'string' && email.includes('@'))
+      ? email.trim().toLowerCase()
+      : (userEmailFromToken ? String(userEmailFromToken).trim().toLowerCase() : null);
+
+    // Determine if caller is admin (DB check)
+    let isDbAdmin = false;
+    if (userEmailFromToken) {
+      try {
+        const { data: adminRow } = await supabaseAdmin
+          .from('admins')
+          .select('email')
+          .eq('email', userEmailFromToken)
+          .maybeSingle();
+        isDbAdmin = !!adminRow;
+      } catch {}
+    }
+
+    // Helper to parse raw records to Project[]
+    const parseRows = (rows: any[]): Project[] => {
+      return (rows || []).map((project: any) => {
+        let parsedPayload: any = null;
+        if (project.raw_payload) {
+          try {
+            parsedPayload = typeof project.raw_payload === 'string'
+              ? JSON.parse(project.raw_payload)
+              : project.raw_payload;
+          } catch {}
+        }
+        return {
+          id: project.id,
+          email: project.email,
+          project_id: project.project_id || project.id,
+          milestone: project.milestone || 'Unknown',
+          raw_payload: project.raw_payload,
+          updated_at: project.updated_at,
+          parsed_payload: parsedPayload,
+        } as Project;
+      });
+    };
+
+    let matchPath: 'none' | 'exact' | 'ilike' | 'username' = 'none';
+    let exactCount = 0, ilikeCount = 0, usernameCount = 0;
+
+    if (effectiveEmail) {
+      console.log('📧 [PROJECT-LOOKUP] Looking up by email in podio_data', { effectiveEmail, isDbAdmin });
+      if (isDbAdmin) {
+        // Use service client to bypass RLS for admins
+        const { data: exactRows } = await supabaseAdmin
+          .from('podio_data')
+          .select('id, email, project_id, milestone, raw_payload, updated_at')
+          .eq('email', effectiveEmail);
+        exactCount = exactRows?.length || 0;
+        if (exactCount > 0) {
+          matchPath = 'exact';
+          projects = parseRows(exactRows || []);
+        } else {
+          const { data: ilikeRows } = await supabaseAdmin
+            .from('podio_data')
+            .select('id, email, project_id, milestone, raw_payload, updated_at')
+            .ilike('email', `%${effectiveEmail}%`);
+          ilikeCount = ilikeRows?.length || 0;
+          if (ilikeCount > 0) {
+            matchPath = 'ilike';
+            projects = parseRows(ilikeRows || []);
+          } else {
+            const username = effectiveEmail.split('@')[0];
+            const { data: userRows } = await supabaseAdmin
+              .from('podio_data')
+              .select('id, email, project_id, milestone, raw_payload, updated_at')
+              .ilike('email', `%${username}%`);
+            usernameCount = userRows?.length || 0;
+            if (usernameCount > 0) {
+              matchPath = 'username';
+              projects = parseRows(userRows || []);
+            }
+          }
+        }
+      } else {
+        // Non-admin: use existing helper with session context
+        const userSession = sessionToken ? { access_token: sessionToken } : null;
+        projects = await getProjectByEmail(effectiveEmail, userSession);
+        // We can't easily compute matchPath here without duplicating logic; leave as 'none'
+      }
     } else if (query) {
       console.log('🔎 [PROJECT-LOOKUP] Performing general search in podio_data');
       projects = await searchPodioData(query);
@@ -120,7 +200,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     res.status(200).json({ 
       projects: formattedProjects,
-      count: formattedProjects.length
+      count: formattedProjects.length,
+      debug: { matchPath, exactCount, ilikeCount, usernameCount }
     });
   } catch (error) {
     console.error('❌ [PROJECT-LOOKUP] API error:', {

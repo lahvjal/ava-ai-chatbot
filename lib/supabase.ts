@@ -206,7 +206,7 @@ export async function getProjectByEmail(email: string, userSession?: any): Promi
     const { data: caseInsensitiveData, error: caseInsensitiveError } = await clientToUse
       .from('podio_data')
       .select('*')
-      .ilike('email', email.trim());
+      .ilike('email', `%${email.trim()}%`);
     
     // Try searching without domain (just username part)
     const emailUsername = email.split('@')[0];

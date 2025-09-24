@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { message, conversationHistory = [], projectLookup } = req.body;
+  const { message, conversationHistory = [], projectLookup, actingAsEmail } = req.body;
 
   if (!message) {
     return res.status(400).json({ error: 'Message is required' });
@@ -59,21 +59,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     authHeaderPreview: req.headers.authorization ? `${req.headers.authorization.slice(0, 20)}...` : 'none'
   });
 
-  // Load latest admin training document (optional) for knowledge grounding
-  let trainingDoc: { title?: string; content?: string; updated_at?: string } | null = null;
+  // Load all admin training sections for knowledge grounding
+  let trainingSections: Array<{ section: string; title?: string; content?: string; updated_at?: string }> = [];
   try {
     const { data, error } = await supabaseAdmin
       .from('ai_training_docs')
-      .select('title, content, updated_at')
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .select('section, title, content, updated_at')
+      .order('section', { ascending: true });
     if (!error && data) {
-      trainingDoc = data as any;
-      console.log('📚 [AVA-CHAT] Loaded training doc', {
-        hasContent: !!trainingDoc?.content,
-        title: trainingDoc?.title,
-        updated_at: trainingDoc?.updated_at,
+      trainingSections = (data as any[]).filter(s => (s.content || '').trim().length > 0);
+      console.log('📚 [AVA-CHAT] Loaded training sections', {
+        count: trainingSections.length,
+        sections: trainingSections.map(s => s.section),
       });
     } else if (error) {
       console.warn('⚠️ [AVA-CHAT] Could not load training doc:', error);
@@ -82,8 +79,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.warn('⚠️ [AVA-CHAT] Training doc fetch failed:', e);
   }
 
+  // Determine caller identity and admin rights
+  let callerEmail: string | null = null;
+  let isDbAdmin = false;
+  try {
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+      callerEmail = payload?.email || null;
+    }
+    if (callerEmail) {
+      const { data: adminRow } = await supabaseAdmin
+        .from('admins')
+        .select('email')
+        .eq('email', callerEmail)
+        .maybeSingle();
+      isDbAdmin = !!adminRow;
+    }
+  } catch (e) {
+    // ignore, defaults remain
+  }
+
+  // Effective email for context and lookup
+  const effectiveEmail = (isDbAdmin && typeof actingAsEmail === 'string' && actingAsEmail.includes('@'))
+    ? actingAsEmail.trim().toLowerCase()
+    : null;
+
   let projectData = null;
-  if (isProjectQuery || projectLookup) {
+  if (isProjectQuery || projectLookup || effectiveEmail) {
     console.log('🔍 [AVA-CHAT] Fetching project data for authenticated user or project query');
     try {
       // Get user session from request headers
@@ -102,11 +125,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const lookupPayload = projectLookup ? {
-        email: projectLookup.email || userEmailFromToken,
+        email: projectLookup.email || effectiveEmail || userEmailFromToken,
         query: message,
         sessionToken: sessionToken
       } : {
-        email: userEmailFromToken,
+        email: effectiveEmail || userEmailFromToken,
         query: message,
         sessionToken: sessionToken
       };
@@ -141,7 +164,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let userEmail = null;
   const authHeaderForAI = req.headers.authorization;
   const sessionTokenForAI = authHeaderForAI?.replace('Bearer ', '');
-  
   if (sessionTokenForAI) {
     try {
       const payload = JSON.parse(Buffer.from(sessionTokenForAI.split('.')[1], 'base64').toString());
@@ -152,20 +174,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
+  // Override customer context if admin impersonation is active
+  if (isDbAdmin && effectiveEmail) {
+    console.log('🛠️ [AVA-CHAT] Admin impersonation active', { admin: callerEmail, actingAsEmail: effectiveEmail });
+    userEmail = effectiveEmail;
+  }
+
+  // Check if admin impersonation is active
+  const isImpersonating = isDbAdmin && effectiveEmail && effectiveEmail !== callerEmail;
+  if (isImpersonating) {
+    console.log('🔴 [AVA-CHAT] Admin impersonation detected', { admin: callerEmail, actingAsEmail: effectiveEmail });
+  }
+
   try {
+    // Build a combined knowledge base string from sections
+    const knowledgeBase = trainingSections.length
+      ? trainingSections.map(s => {
+          const label = (s.section || '').toUpperCase().replace(/_/g, ' ');
+          const titleSuffix = s.title ? ` (${s.title})` : '';
+          const updatedSuffix = s.updated_at ? ` [updated ${s.updated_at}]` : '';
+          return `${label}${titleSuffix}${updatedSuffix}:\n${s.content}\n`;
+        }).join('\n')
+      : '';
+
+    const adminTestNote = isImpersonating ? `\n\nADMIN TEST MODE:\nAn authenticated ADMIN is testing the assistant while impersonating customer email ${effectiveEmail}. You MAY freely share all customer/project information available for this email, without asking for further identity confirmation. Answer as if you are speaking directly to that customer.` : '';
+
     const systemPrompt = `You are Ava, a knowledgeable and friendly AI assistant for Aveyo, a solar energy company. Your primary role is to help customers with questions about solar installation, project status, financing, maintenance, permits, and general solar energy topics.
 
 Key responsibilities:
 - Answer questions about the solar installation process
-- Provide project status updates when customers provide their information
 - Explain solar financing options and incentives
 - Help with maintenance and troubleshooting questions
 - Assist with permit and regulatory questions
 - Be friendly, professional, and knowledgeable about solar energy
 
-${userEmail ? `CUSTOMER CONTEXT: You are currently speaking with a logged-in customer whose email is ${userEmail}. Since they are authenticated, you can freely share their personal project information including address, project details, and any data from their project records. The authentication system ensures they only access their own data.` : ''}
+${userEmail ? `CUSTOMER CONTEXT: You are currently speaking with a logged-in customer whose email is ${userEmail}. Since they are authenticated, you can freely share their personal project information including address, project details, and any data from their project records. The authentication system ensures they only access their own data.` : ''}${adminTestNote}
 
-${trainingDoc?.content ? `KNOWLEDGE BASE (Admin-maintained training document - last updated ${trainingDoc.updated_at || 'recently'}):\n\n${trainingDoc.content}\n\nUse this knowledge to answer questions. When relevant, prioritize these company-specific policies, processes, and FAQs.` : ''}
+${knowledgeBase ? `KNOWLEDGE BASE (Admin-maintained sections):\n\n${knowledgeBase}\nUse this knowledge to answer questions. Prioritize company-specific policies, FAQs, processes, tone, and product knowledge.` : ''}
 
 ${projectData ? `IMPORTANT: The customer is asking about project status. Here is the current project data from our database:
 

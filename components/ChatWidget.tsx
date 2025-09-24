@@ -12,11 +12,13 @@ interface Message {
 interface ChatWidgetProps {
   isEmbedded?: boolean;
   apiEndpoint?: string;
+  actingAsEmail?: string | null;
 }
 
 const ChatWidget: React.FC<ChatWidgetProps> = ({ 
   isEmbedded = false, 
-  apiEndpoint = '/api/chat' 
+  apiEndpoint = '/api/chat',
+  actingAsEmail = null,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -140,7 +142,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         body: JSON.stringify({
           message: inputValue,
           conversationHistory: messages,
-          projectLookup: projectEmail ? { email: projectEmail } : undefined
+          projectLookup: projectEmail ? { email: projectEmail } : undefined,
+          actingAsEmail: actingAsEmail || undefined,
         }),
       });
 
@@ -217,6 +220,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
       {/* Messages */}
       <div className="h-96 overflow-y-auto p-4 space-y-4">
+        {actingAsEmail && (
+          <div className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
+            Admin test mode: impersonating <span className="font-medium">{actingAsEmail}</span>
+          </div>
+        )}
         {messages.length === 0 && (
           <div className="text-gray-500 text-center py-8">
             <MessageCircle size={48} className="mx-auto mb-4 opacity-50" />
