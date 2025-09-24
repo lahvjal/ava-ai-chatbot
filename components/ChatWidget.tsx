@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, MessageSquare, X, User, LogIn, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import ReactMarkdown from 'react-markdown';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -28,6 +29,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -114,6 +116,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     setInputValue('');
     setIsLoading(true);
 
+    // Keep focus on input after sending message
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -158,6 +165,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      // Restore focus after loading is complete
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
     }
   };
 
@@ -219,13 +230,41 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+              className={`${
+                message.role === 'user' 
+                  ? 'max-w-xs lg:max-w-md' 
+                  : 'max-w-sm lg:max-w-lg xl:max-w-xl'
+              } px-4 py-2 rounded-lg ${
                 message.role === 'user'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-800'
               }`}
             >
-              <p className="text-sm">{message.content}</p>
+              <div className="text-sm">
+                {message.role === 'assistant' ? (
+                  <ReactMarkdown
+                    components={{
+                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                      strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+                      em: ({ children }) => <em className="italic">{children}</em>,
+                      ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                      li: ({ children }) => <li className="ml-2">{children}</li>,
+                      h1: ({ children }) => <h1 className="font-bold text-base mb-2 text-blue-700">{children}</h1>,
+                      h2: ({ children }) => <h2 className="font-semibold text-sm mb-1 text-blue-700">{children}</h2>,
+                      h3: ({ children }) => <h3 className="font-medium text-sm mb-1 text-blue-600">{children}</h3>,
+                      code: ({ children }) => <code className="bg-gray-200 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+                      blockquote: ({ children }) => <blockquote className="border-l-2 border-blue-300 pl-3 italic text-gray-700">{children}</blockquote>
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                ) : (
+                  <div className="whitespace-pre-wrap break-words">
+                    {message.content}
+                  </div>
+                )}
+              </div>
               <p className={`text-xs mt-1 ${
                 message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
               }`}>
@@ -360,6 +399,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         </div>
         <div className="flex space-x-2">
           <textarea
+            ref={inputRef}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}

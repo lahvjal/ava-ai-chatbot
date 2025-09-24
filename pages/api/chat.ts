@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import OpenAI from 'openai';
 import { rateLimit } from './rate-limit';
+import { supabaseAdmin } from '../../lib/supabase';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -57,6 +58,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     hasAuthHeader: !!req.headers.authorization,
     authHeaderPreview: req.headers.authorization ? `${req.headers.authorization.slice(0, 20)}...` : 'none'
   });
+
+  // Load latest admin training document (optional) for knowledge grounding
+  let trainingDoc: { title?: string; content?: string; updated_at?: string } | null = null;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('ai_training_docs')
+      .select('title, content, updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!error && data) {
+      trainingDoc = data as any;
+      console.log('📚 [AVA-CHAT] Loaded training doc', {
+        hasContent: !!trainingDoc?.content,
+        title: trainingDoc?.title,
+        updated_at: trainingDoc?.updated_at,
+      });
+    } else if (error) {
+      console.warn('⚠️ [AVA-CHAT] Could not load training doc:', error);
+    }
+  } catch (e) {
+    console.warn('⚠️ [AVA-CHAT] Training doc fetch failed:', e);
+  }
 
   let projectData = null;
   if (isProjectQuery || projectLookup) {
@@ -140,6 +164,8 @@ Key responsibilities:
 - Be friendly, professional, and knowledgeable about solar energy
 
 ${userEmail ? `CUSTOMER CONTEXT: You are currently speaking with a logged-in customer whose email is ${userEmail}. Since they are authenticated, you can freely share their personal project information including address, project details, and any data from their project records. The authentication system ensures they only access their own data.` : ''}
+
+${trainingDoc?.content ? `KNOWLEDGE BASE (Admin-maintained training document - last updated ${trainingDoc.updated_at || 'recently'}):\n\n${trainingDoc.content}\n\nUse this knowledge to answer questions. When relevant, prioritize these company-specific policies, processes, and FAQs.` : ''}
 
 ${projectData ? `IMPORTANT: The customer is asking about project status. Here is the current project data from our database:
 
