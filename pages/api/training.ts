@@ -48,8 +48,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'GET') {
-      // Return all sections as a map
-      const { data, error } = await supabaseAdmin
+      // Return all sections as a map (use anon client; public read policy allows this)
+      const { data, error } = await supabase
         .from('ai_training_docs')
         .select('id, section, title, content, updated_by, updated_at')
         .order('section', { ascending: true })
