@@ -31,7 +31,7 @@
       justify-content: center;
       transition: all 0.2s ease;
     ">
-      <img src="${window.location.origin}/ava-logo-button.svg" alt="Ava Logo" style="width: 100%; height: 100%; object-fit: contain;" />
+      <img src="https://ava-ai-chatbot.vercel.app/ava-logo-button.svg" alt="Ava Logo" style="width: 100%; height: 100%; object-fit: contain;" />
     </button>
   `;
 
