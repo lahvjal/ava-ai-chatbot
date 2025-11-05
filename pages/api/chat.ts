@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import OpenAI from 'openai';
 import { rateLimit } from './rate-limit';
 import { supabaseAdmin } from '../../lib/supabase';
+import { handleCorsPreflightAndContinue } from '../../lib/cors';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -11,6 +12,11 @@ const openai = new OpenAI({
 const rateLimitMiddleware = rateLimit(20, 60000); // 20 requests per minute
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Handle CORS and preflight requests
+  if (!handleCorsPreflightAndContinue(req, res)) {
+    return; // Preflight request was handled, exit early
+  }
+
   // Apply rate limiting
   await new Promise<void>((resolve, reject) => {
     rateLimitMiddleware(req, res, (error?: any) => {
@@ -57,6 +63,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
     hasAuthHeader: !!req.headers.authorization,
     authHeaderPreview: req.headers.authorization ? `${req.headers.authorization.slice(0, 20)}...` : 'none'
+  });
+
+  console.log('🚀 [AVA-CHAT] API called:', {
+    method: req.method,
+    hasBody: !!req.body,
+    bodyKeys: req.body ? Object.keys(req.body) : [],
+    hasAuthHeader: !!req.headers.authorization,
+    authHeaderPreview: req.headers.authorization ? req.headers.authorization.substring(0, 20) + '...' : 'none',
+    userAgent: req.headers['user-agent'],
+    origin: req.headers.origin,
+    referer: req.headers.referer,
+    timestamp: new Date().toISOString()
   });
 
   // Load all admin training sections for knowledge grounding

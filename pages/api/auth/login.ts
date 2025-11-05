@@ -1,14 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '../../../lib/supabase';
+import { handleCorsPreflightAndContinue } from '../../../lib/cors';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Add CORS headers for embedded widget
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+  // Handle CORS and preflight requests
+  if (!handleCorsPreflightAndContinue(req, res)) {
+    return; // Preflight request was handled, exit early
   }
 
   if (req.method !== 'POST') {

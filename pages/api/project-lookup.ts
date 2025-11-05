@@ -1,7 +1,13 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getProjectByEmail, searchPodioData, Project, supabaseAdmin } from '../../lib/supabase';
+import { handleCorsPreflightAndContinue } from '../../lib/cors';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Handle CORS and preflight requests
+  if (!handleCorsPreflightAndContinue(req, res)) {
+    return; // Preflight request was handled, exit early
+  }
+
   // Immediate logging to catch all requests
   console.log('🚀 [PROJECT-LOOKUP] Handler started:', {
     method: req.method,
