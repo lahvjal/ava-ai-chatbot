@@ -194,7 +194,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
           onClick={() => setIsOpen(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg transition-all duration-200 hover:scale-105"
         >
-          <img src='ava-logo-button.svg' alt='Ava Logo' className='w-16 h-16' />
+          <img src={`${window.location.origin}/ava-logo-button.svg`} alt='Ava Logo' className='w-16 h-16' />
         </button>
       </div>
     );
@@ -210,7 +210,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         }}
       >
         <div className="flex items-center space-x-2">
-          <img src='ava-logo.svg' alt='Ava Logo' className='w-20 h-5' />
+          <img src={`${window.location.origin}/ava-logo.svg`} alt='Ava Logo' className='w-20 h-5' />
           {/* <MessageCircle size={20} />
           <h3 className="font-semibold">Ava - Aveyo Solar Assistant</h3> */}
         </div>
@@ -233,7 +233,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         )}
         {messages.length === 0 && (
           <div className="text-gray-500 text-center py-8 flex flex-col items-center gap-[14px]">
-            <img src='ava-logo-button.svg' alt='Ava Logo' className='w-16 h-16' />
+            <img src={`${window.location.origin}/ava-logo-button.svg`} alt='Ava Logo' className='w-16 h-16' />
             <p>Hi! I'm Ava from Aveyo. I'm here to help you with your solar installation questions!</p>
           </div>
         )}
@@ -245,7 +245,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
           >
             {message.role === 'assistant' && (
               <img 
-                src="ava-logo-button.svg" 
+                src={`${window.location.origin}/ava-logo-button.svg`} 
                 alt="Ava Logo" 
                 className="w-8 h-8 flex-shrink-0 mt-1" 
               />
@@ -285,7 +285,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         {isLoading && (
           <div className="flex justify-start items-start space-x-2">
             <img 
-              src="ava-logo-button.svg" 
+              src={`${window.location.origin}/ava-logo-button.svg`} 
               alt="Ava Logo" 
               className="w-8 h-8 flex-shrink-0 mt-1 animate-spin" 
             />
