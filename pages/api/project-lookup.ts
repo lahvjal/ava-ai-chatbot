@@ -105,8 +105,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Helper to parse raw records to Project[]
-    const parseRows = (rows: any[]): Project[] => {
-      return (rows || []).map((project: any) => {
+    const parseRows = async (rows: any[]): Promise<Project[]> => {
+      const projects = await Promise.all((rows || []).map(async (project: any) => {
         let parsedPayload: any = null;
         if (project.raw_payload) {
           try {
@@ -115,6 +115,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               : project.raw_payload;
           } catch {}
         }
+        
+        // Look up finance company separately if fin_id exists
+        let financeCompany: string | null = null;
+        if (project.fin_id) {
+          try {
+            console.log(`🔍 [FINANCE-LOOKUP] Looking up finance company for project ${project.project_id} with fin_id: ${project.fin_id}`);
+            
+            const { data: financierData, error: financeError } = await supabaseAdmin
+              .from('financier')
+              .select('company_name')
+              .eq('fin_id', project.fin_id)
+              .single();
+            
+            financeCompany = financierData?.company_name || null;
+            console.log(`💰 [FINANCE-LOOKUP] Result for project ${project.project_id}:`, {
+              fin_id: project.fin_id,
+              company_name: financeCompany,
+              hasError: !!financeError,
+              error: financeError?.message
+            });
+          } catch (error) {
+            console.log(`❌ [FINANCE-LOOKUP] Failed for project ${project.project_id}:`, {
+              fin_id: project.fin_id,
+              error: error instanceof Error ? error.message : error
+            });
+          }
+        } else {
+          console.log(`ℹ️ [FINANCE-LOOKUP] No fin_id for project ${project.project_id}, skipping finance lookup`);
+        }
+        
         return {
           id: project.id,
           email: project.email,
@@ -123,8 +153,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           raw_payload: project.raw_payload,
           updated_at: project.updated_at,
           parsed_payload: parsedPayload,
+          fin_id: project.fin_id,
+          finance_company: financeCompany,
         } as Project;
-      });
+      }));
+      return projects;
     };
 
     let matchPath: 'none' | 'exact' | 'ilike' | 'username' = 'none';
@@ -133,34 +166,59 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (effectiveEmail) {
       console.log('📧 [PROJECT-LOOKUP] Looking up by email in podio_data', { effectiveEmail, isDbAdmin });
       if (isDbAdmin) {
-        // Use service client to bypass RLS for admins
+        // Use service client to bypass RLS for admins - simple email lookup first
         const { data: exactRows } = await supabaseAdmin
           .from('podio_data')
-          .select('id, email, project_id, milestone, raw_payload, updated_at')
+          .select('id, email, project_id, milestone, raw_payload, updated_at, fin_id')
           .eq('email', effectiveEmail);
         exactCount = exactRows?.length || 0;
+        console.log('🔍 [PROJECT-LOOKUP] Exact match results:', {
+          effectiveEmail,
+          foundProjects: exactCount,
+          projectDetails: exactRows?.map(row => ({
+            id: row.id,
+            email: row.email,
+            project_id: row.project_id,
+            milestone: row.milestone,
+            fin_id: row.fin_id,
+            hasRawPayload: !!row.raw_payload
+          }))
+        });
+        
         if (exactCount > 0) {
           matchPath = 'exact';
-          projects = parseRows(exactRows || []);
+          projects = await parseRows(exactRows || []);
+          
+          // Log finance company lookup results for admin impersonation
+          console.log('💰 [PROJECT-LOOKUP] Finance company details:', {
+            effectiveEmail,
+            projectsWithFinance: projects.map(p => ({
+              project_id: p.project_id,
+              email: p.email,
+              fin_id: p.fin_id,
+              finance_company: p.finance_company,
+              financeStatus: p.finance_company ? 'Found' : (p.fin_id ? 'Lookup failed' : 'No fin_id')
+            }))
+          });
         } else {
           const { data: ilikeRows } = await supabaseAdmin
             .from('podio_data')
-            .select('id, email, project_id, milestone, raw_payload, updated_at')
+            .select('id, email, project_id, milestone, raw_payload, updated_at, fin_id')
             .ilike('email', `%${effectiveEmail}%`);
           ilikeCount = ilikeRows?.length || 0;
           if (ilikeCount > 0) {
             matchPath = 'ilike';
-            projects = parseRows(ilikeRows || []);
+            projects = await parseRows(ilikeRows || []);
           } else {
             const username = effectiveEmail.split('@')[0];
             const { data: userRows } = await supabaseAdmin
               .from('podio_data')
-              .select('id, email, project_id, milestone, raw_payload, updated_at')
+              .select('id, email, project_id, milestone, raw_payload, updated_at, fin_id')
               .ilike('email', `%${username}%`);
             usernameCount = userRows?.length || 0;
             if (usernameCount > 0) {
               matchPath = 'username';
-              projects = parseRows(userRows || []);
+              projects = await parseRows(userRows || []);
             }
           }
         }
@@ -183,7 +241,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       milestone: project.milestone,
       raw_payload: project.raw_payload,
       parsed_payload: project.parsed_payload,
-      updated_at: project.updated_at
+      updated_at: project.updated_at,
+      fin_id: project.fin_id,
+      finance_company: project.finance_company
     }));
 
     console.log('📤 [PROJECT-LOOKUP] Returning response:', {

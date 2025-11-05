@@ -44,6 +44,8 @@ export interface Project {
   raw_payload: any; // JSON data from Podio containing address and other details
   updated_at: string;
   parsed_payload?: any; // Parsed version of raw_payload
+  fin_id?: string; // Finance company ID
+  finance_company?: string; // Finance company name from financier table
 }
 
 // Database functions for project queries
