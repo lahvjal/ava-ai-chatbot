@@ -11,10 +11,11 @@ const nextConfig = {
         ],
       },
       {
-        source: '/embed.js',
+        source: '/embed/:path*',
         headers: [
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Content-Type', value: 'application/javascript' },
+          { key: 'Cache-Control', value: 'public, max-age=3600' },
         ],
       },
     ];
