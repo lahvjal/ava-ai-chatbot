@@ -43,6 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           email: data.user.email,
         },
         access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
       });
     } else {
       console.error('❌ [AUTH-LOGIN] No user or session returned');

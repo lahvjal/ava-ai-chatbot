@@ -20,6 +20,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   apiEndpoint = '/api/chat',
   actingAsEmail = null,
 }) => {
+  // Always use Vercel domain for API calls when embedded
+  const resolvedApiEndpoint = apiEndpoint.startsWith('/') 
+    ? `https://ava-ai-chatbot.vercel.app${apiEndpoint}` 
+    : apiEndpoint;
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -67,24 +71,47 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
-        password: loginPassword,
+      console.log('🔐 [AUTH] Attempting login via API endpoint...');
+      
+      // Use API endpoint for authentication instead of direct Supabase client
+      const apiUrl = 'https://ava-ai-chatbot.vercel.app/api/auth/login';
+      console.log('🔗 [AUTH] Using API URL:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: loginEmail,
+          password: loginPassword,
+        }),
       });
 
-      if (error) {
-        console.error('❌ [AUTH] Login error:', error);
-        // Add error message to chat
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        console.error('❌ [AUTH] Login failed:', result.error);
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: `Login failed: ${error.message}. Please check your credentials or contact support.`,
+          content: `Login failed: ${result.error || 'Invalid credentials'}. Please check your email and password or contact support.`,
           timestamp: new Date()
         }]);
       } else {
-        console.log('✅ [AUTH] Login successful:', data.user?.email);
+        console.log('✅ [AUTH] Login successful via API:', result.user?.email);
+        
+        // Set the session in Supabase client
+        if (result.access_token) {
+          await supabase.auth.setSession({
+            access_token: result.access_token,
+            refresh_token: result.refresh_token || result.access_token
+          });
+        }
+        
         setShowLogin(false);
         setLoginEmail('');
         setLoginPassword('');
+        
         // Add success message
         setMessages(prev => [...prev, {
           role: 'assistant',
@@ -94,6 +121,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       }
     } catch (error) {
       console.error('❌ [AUTH] Login exception:', error);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Login failed due to a network error. Please check your connection and try again.',
+        timestamp: new Date()
+      }]);
     } finally {
       setIsLoading(false);
     }
@@ -136,7 +168,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         }
       }
 
-      const response = await fetch(apiEndpoint, {
+      console.log('🔗 [CHAT] Using API URL:', resolvedApiEndpoint);
+      const response = await fetch(resolvedApiEndpoint, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -194,7 +227,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
           onClick={() => setIsOpen(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg transition-all duration-200 hover:scale-105"
         >
-          <img src={typeof window !== 'undefined' ? `${window.location.origin}/ava-logo-button.svg` : '/ava-logo-button.svg'} alt='Ava Logo' className='w-16 h-16' />
+          <img src="https://ava-ai-chatbot.vercel.app/ava-logo-button.svg" alt='Ava Logo' className='w-16 h-16' />
         </button>
       </div>
     );
@@ -210,7 +243,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         }}
       >
         <div className="flex items-center space-x-2">
-          <img src={typeof window !== 'undefined' ? `${window.location.origin}/ava-logo.svg` : '/ava-logo.svg'} alt='Ava Logo' className='w-20 h-5' />
+          <img src="https://ava-ai-chatbot.vercel.app/ava-logo.svg" alt='Ava Logo' className='w-20 h-5' />
           {/* <MessageCircle size={20} />
           <h3 className="font-semibold">Ava - Aveyo Solar Assistant</h3> */}
         </div>
@@ -233,7 +266,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         )}
         {messages.length === 0 && (
           <div className="text-gray-500 text-center py-8 flex flex-col items-center gap-[14px]">
-            <img src={typeof window !== 'undefined' ? `${window.location.origin}/ava-logo-button.svg` : '/ava-logo-button.svg'} alt='Ava Logo' className='w-16 h-16' />
+            <img src="https://ava-ai-chatbot.vercel.app/ava-logo-button.svg" alt='Ava Logo' className='w-16 h-16' />
             <p>Hi! I'm Ava from Aveyo. I'm here to help you with your solar installation questions!</p>
           </div>
         )}
@@ -245,7 +278,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
           >
             {message.role === 'assistant' && (
               <img 
-                src={typeof window !== 'undefined' ? `${window.location.origin}/ava-logo-button.svg` : '/ava-logo-button.svg'} 
+                src="https://ava-ai-chatbot.vercel.app/ava-logo-button.svg" 
                 alt="Ava Logo" 
                 className="w-8 h-8 flex-shrink-0 mt-1" 
               />
@@ -285,7 +318,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         {isLoading && (
           <div className="flex justify-start items-start space-x-2">
             <img 
-              src={typeof window !== 'undefined' ? `${window.location.origin}/ava-logo-button.svg` : '/ava-logo-button.svg'} 
+              src="https://ava-ai-chatbot.vercel.app/ava-logo-button.svg" 
               alt="Ava Logo" 
               className="w-8 h-8 flex-shrink-0 mt-1 animate-spin" 
             />
