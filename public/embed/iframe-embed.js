@@ -3,7 +3,7 @@
 
   // Configuration
   const CONFIG = {
-    iframeUrl: window.location.origin + '/embed-iframe', // Use same origin for development
+    iframeUrl: 'https://ava-ai-chatbot.vercel.app/embed-iframe', // Production URL for embedding
     widgetId: 'ava-iframe-widget',
     buttonId: 'ava-iframe-button'
   };
