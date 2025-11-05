@@ -194,7 +194,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
           onClick={() => setIsOpen(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg transition-all duration-200 hover:scale-105"
         >
-          <MessageCircle size={24} />
+          <img src='ava-logo-button.svg' alt='Ava Logo' className='w-16 h-16' />
         </button>
       </div>
     );
@@ -203,10 +203,16 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   return (
     <div className={`${isEmbedded ? 'fixed bottom-4 right-4 z-50' : 'w-full max-w-md mx-auto'} bg-white rounded-lg shadow-xl border border-gray-200`}>
       {/* Header */}
-      <div className="bg-blue-600 text-white p-4 rounded-t-lg flex items-center justify-between">
+      <div 
+        className="text-white p-4 rounded-t-lg flex items-center justify-between"
+        style={{
+          background: 'radial-gradient(146.96% 389.93% at 53.39% -106.95%, rgba(76, 142, 212, 0.50) 0%, rgba(76, 142, 212, 0.00) 100%), radial-gradient(510.44% 138.09% at -8.09% 156.8%, rgba(118, 90, 243, 0.50) 0%, rgba(187, 90, 243, 0.00) 100%), #F0F0F0'
+        }}
+      >
         <div className="flex items-center space-x-2">
-          <MessageCircle size={20} />
-          <h3 className="font-semibold">Ava - Aveyo Solar Assistant</h3>
+          <img src='ava-logo.svg' alt='Ava Logo' className='w-20 h-5' />
+          {/* <MessageCircle size={20} />
+          <h3 className="font-semibold">Ava - Aveyo Solar Assistant</h3> */}
         </div>
         {isEmbedded && (
           <button
@@ -219,15 +225,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       </div>
 
       {/* Messages */}
-      <div className="h-96 overflow-y-auto p-4 space-y-4">
+      <div className="h-96 overflow-y-auto p-4 space-y-4" id='chat-container'>
         {actingAsEmail && (
           <div className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
             Admin test mode: impersonating <span className="font-medium">{actingAsEmail}</span>
           </div>
         )}
         {messages.length === 0 && (
-          <div className="text-gray-500 text-center py-8">
-            <MessageCircle size={48} className="mx-auto mb-4 opacity-50" />
+          <div className="text-gray-500 text-center py-8 flex flex-col items-center gap-[14px]">
+            <img src='ava-logo-button.svg' alt='Ava Logo' className='w-16 h-16' />
             <p>Hi! I'm Ava from Aveyo. I'm here to help you with your solar installation questions!</p>
           </div>
         )}
@@ -235,8 +241,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start items-start space-x-2'}`}
           >
+            {message.role === 'assistant' && (
+              <img 
+                src="ava-logo-button.svg" 
+                alt="Ava Logo" 
+                className="w-8 h-8 flex-shrink-0 mt-1" 
+              />
+            )}
             <div
               className={`${
                 message.role === 'user' 
@@ -270,7 +283,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         ))}
         
         {isLoading && (
-          <div className="flex justify-start">
+          <div className="flex justify-start items-start space-x-2">
+            <img 
+              src="ava-logo-button.svg" 
+              alt="Ava Logo" 
+              className="w-8 h-8 flex-shrink-0 mt-1 animate-spin" 
+            />
             <div className="bg-gray-100 text-gray-800 max-w-xs lg:max-w-md px-4 py-2 rounded-lg">
               <div className="flex space-x-1">
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
@@ -285,7 +303,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
       {/* Login Form */}
       {showLogin && (
-        <div className="p-4 border-t border-gray-200 bg-gray-50">
+        <div className="p-4 border-t border-gray-200 bg-gray-50" id='login-container'>
           <div className="flex items-center justify-between mb-3">
             <h4 className="font-medium text-gray-700">Customer Login</h4>
             <button
@@ -356,7 +374,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       )}
 
       {/* Input */}
-      <div className="p-4 border-t border-gray-200">
+      <div style={{ position: 'fixed', bottom: 0, width: '100%' }} className="p-4 border-t border-gray-200">
         <div className="flex items-center space-x-2 mb-2">
           {!user ? (
             <button
@@ -398,7 +416,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask me about solar installation..."
+            placeholder="Ask me about solar"
             className="flex-1 border border-gray-300 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             rows={1}
             disabled={isLoading}

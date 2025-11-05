@@ -3,7 +3,7 @@
 
   // Configuration
   const CONFIG = {
-    iframeUrl: 'https://ava-ai-chatbot.vercel.app/embed-iframe',
+    iframeUrl: window.location.origin + '/embed-iframe', // Use same origin for development
     widgetId: 'ava-iframe-widget',
     buttonId: 'ava-iframe-button'
   };
@@ -31,9 +31,7 @@
       justify-content: center;
       transition: all 0.2s ease;
     ">
-      <svg width="24" height="24" fill="white" viewBox="0 0 24 24">
-        <path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 3.04.97 4.37L1 23l6.63-1.97C9.96 21.64 11.46 22 13 22h7c1.1 0 2-.9 2-2V12c0-5.52-4.48-10-10-10z"/>
-      </svg>
+      <img src="${window.location.origin}/ava-logo-button.svg" alt="Ava Logo" style="width: 100%; height: 100%; object-fit: contain;" />
     </button>
   `;
 
@@ -104,8 +102,14 @@
   }
 
   function handleIframeMessage(event) {
-    // Only accept messages from our iframe
-    if (event.origin !== 'https://ava-ai-chatbot.vercel.app') {
+    // Only accept messages from our iframe (allow localhost for development)
+    const allowedOrigins = [
+      'https://ava-ai-chatbot.vercel.app',
+      'http://localhost:3000',
+      'https://localhost:3000'
+    ];
+    
+    if (!allowedOrigins.includes(event.origin)) {
       return;
     }
 
@@ -114,6 +118,7 @@
         console.log('✅ Iframe widget ready');
         break;
       case 'CLOSE_WIDGET':
+        console.log('📱 Close widget requested from iframe');
         toggleWidget();
         break;
       case 'RESIZE_WIDGET':
@@ -121,6 +126,9 @@
         if (widget && event.data.height) {
           widget.style.height = event.data.height + 'px';
         }
+        break;
+      default:
+        console.log('🔔 Unknown message from iframe:', event.data.type);
         break;
     }
   }
