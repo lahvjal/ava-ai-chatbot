@@ -3,7 +3,8 @@
 
   // Configuration
   const CONFIG = {
-    apiUrl: window.location.origin + '/api/chat', // Use same origin for API calls
+    apiUrl: 'https://ava-ai-chatbot.vercel.app/api/chat', // Always use production API
+    authUrl: 'https://ava-ai-chatbot.vercel.app/api/auth/login', // Always use production auth
     widgetId: 'ava-chat-widget',
     buttonId: 'ava-chat-button'
   };
@@ -544,7 +545,7 @@
 
     try {
       // Use the main site's auth endpoint instead of direct Supabase calls
-      const response = await fetch(`${window.location.origin}/api/auth/login`, {
+      const response = await fetch(CONFIG.authUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -582,7 +583,7 @@
     try {
       // Call logout endpoint if available
       if (user && user.access_token) {
-        await fetch(`${window.location.origin}/api/auth/logout`, {
+        await fetch('https://ava-ai-chatbot.vercel.app/api/auth/logout', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${user.access_token}`,
