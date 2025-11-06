@@ -1,0 +1,26 @@
+{
+  "name": "ava-ai-portal-integration",
+  "version": "1.0.0",
+  "description": "Ava AI Chat Widget for Customer Portal Integration",
+  "main": "components/PortalChatWidget.tsx",
+  "keywords": [
+    "ai",
+    "chatbot",
+    "solar",
+    "customer-support",
+    "react",
+    "portal"
+  ],
+  "author": "Aveyo Solar",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=16.8.0",
+    "lucide-react": ">=0.263.0"
+  },
+  "files": [
+    "components/",
+    "api/",
+    "demo/",
+    "README.md"
+  ]
+}

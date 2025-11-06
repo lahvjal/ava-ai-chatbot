@@ -9,16 +9,25 @@ interface Message {
   timestamp: Date;
 }
 
+interface PreAuthenticatedUser {
+  email?: string;
+  userId?: string;
+  name?: string;
+  customData?: any;
+}
+
 interface ChatWidgetProps {
   isEmbedded?: boolean;
   apiEndpoint?: string;
   actingAsEmail?: string | null;
+  preAuthenticatedUser?: PreAuthenticatedUser | null;
 }
 
 const ChatWidget: React.FC<ChatWidgetProps> = ({ 
   isEmbedded = false, 
   apiEndpoint = '/api/chat',
   actingAsEmail = null,
+  preAuthenticatedUser = null,
 }) => {
   // Always use Vercel domain for API calls when embedded
   const resolvedApiEndpoint = apiEndpoint.startsWith('/') 
@@ -45,9 +54,31 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     scrollToBottom();
   }, [messages]);
 
-  // Check for existing auth session
+  // Check for existing auth session or pre-authenticated user
   useEffect(() => {
     const checkSession = async () => {
+      // If we have a pre-authenticated user, use that instead of checking Supabase
+      if (preAuthenticatedUser?.email) {
+        console.log('🔐 [AUTH] Using pre-authenticated user:', preAuthenticatedUser.email);
+        setUser({
+          id: preAuthenticatedUser.userId || preAuthenticatedUser.email,
+          email: preAuthenticatedUser.email,
+          user_metadata: {
+            name: preAuthenticatedUser.name,
+            customData: preAuthenticatedUser.customData
+          }
+        });
+        
+        // Add welcome message for pre-authenticated user
+        setMessages([{
+          role: 'assistant',
+          content: `Hello${preAuthenticatedUser.name ? ` ${preAuthenticatedUser.name}` : ''}! I can see you're logged in. I'm here to help you with your solar installation questions and project updates.`,
+          timestamp: new Date()
+        }]);
+        return;
+      }
+      
+      // Otherwise check for existing Supabase session
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setUser(session.user);
@@ -64,7 +95,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [preAuthenticatedUser]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
