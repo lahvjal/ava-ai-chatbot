@@ -288,7 +288,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         </div>
         {isEmbedded && (
           <button
-            onClick={() => setIsOpen(false)}
+            onClick={() => {
+              if (forceOpen) {
+                // For authenticated iframe, send message to parent to close
+                window.parent.postMessage({ type: 'CLOSE_AVA_WIDGET' }, '*');
+              } else {
+                // For regular embedded mode, just close locally
+                setIsOpen(false);
+              }
+            }}
             className="hover:bg-blue-700 p-1 rounded"
           >
             <X size={18} />

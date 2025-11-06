@@ -88,6 +88,13 @@
       }
     });
     
+    // Listen for close messages from iframe
+    window.addEventListener('message', function(event) {
+      if (event.data && event.data.type === 'CLOSE_AVA_WIDGET') {
+        closeWidget();
+      }
+    });
+    
     console.log('Ava authenticated widget initialized');
   }
 
