@@ -291,6 +291,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
             onClick={() => {
               if (forceOpen) {
                 // For authenticated iframe, send message to parent to close
+                console.log('Sending CLOSE_AVA_WIDGET message to parent');
                 window.parent.postMessage({ type: 'CLOSE_AVA_WIDGET' }, '*');
               } else {
                 // For regular embedded mode, just close locally

@@ -90,7 +90,9 @@
     
     // Listen for close messages from iframe
     window.addEventListener('message', function(event) {
+      console.log('Received message:', event.data, 'from origin:', event.origin);
       if (event.data && event.data.type === 'CLOSE_AVA_WIDGET') {
+        console.log('Closing widget via message');
         closeWidget();
       }
     });
