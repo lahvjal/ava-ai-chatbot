@@ -21,6 +21,7 @@ interface ChatWidgetProps {
   apiEndpoint?: string;
   actingAsEmail?: string | null;
   preAuthenticatedUser?: PreAuthenticatedUser | null;
+  forceOpen?: boolean;
 }
 
 const ChatWidget: React.FC<ChatWidgetProps> = ({ 
@@ -28,12 +29,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   apiEndpoint = '/api/chat',
   actingAsEmail = null,
   preAuthenticatedUser = null,
+  forceOpen = false,
 }) => {
   // Always use Vercel domain for API calls when embedded
   const resolvedApiEndpoint = apiEndpoint.startsWith('/') 
     ? `https://ava-ai-chatbot.vercel.app${apiEndpoint}` 
     : apiEndpoint;
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(forceOpen);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -251,7 +253,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     }
   };
 
-  if (isEmbedded && !isOpen) {
+  if (isEmbedded && !isOpen && !forceOpen) {
     return (
       <div className="fixed bottom-4 right-4 z-50">
         <button

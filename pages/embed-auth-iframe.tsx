@@ -110,6 +110,7 @@ export default function EmbedAuthIframe() {
         <div className="w-full max-w-md">
           <ChatWidget 
             isEmbedded={true}
+            forceOpen={true}
             apiEndpoint="/api/chat"
             actingAsEmail={sessionData?.email || null}
             preAuthenticatedUser={isAuthenticated ? {
