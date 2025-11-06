@@ -106,36 +106,32 @@ export default function EmbedAuthIframe() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <ChatWidget 
-            isEmbedded={true}
-            forceOpen={true}
-            apiEndpoint="/api/chat"
-            actingAsEmail={sessionData?.email || null}
-            preAuthenticatedUser={isAuthenticated ? {
-              email: sessionData?.email,
-              userId: sessionData?.userId,
-              name: sessionData?.name,
-              customData: sessionData?.customData
-            } : null}
-          />
-        </div>
+      <ChatWidget 
+        isEmbedded={true}
+        forceOpen={true}
+        apiEndpoint="/api/chat"
+        actingAsEmail={null}
+        preAuthenticatedUser={isAuthenticated ? {
+          email: sessionData?.email,
+          userId: sessionData?.userId,
+          name: sessionData?.name,
+          customData: sessionData?.customData
+        } : null}
+      />
         
-        {/* Debug info in development */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="fixed top-4 left-4 bg-white p-4 rounded shadow-lg text-xs max-w-sm">
-            <h3 className="font-bold mb-2">Debug - Auth Session</h3>
-            <pre className="text-xs overflow-auto">
-              {JSON.stringify({
-                sessionData,
-                isAuthenticated,
-                query: router.query
-              }, null, 2)}
-            </pre>
-          </div>
-        )}
-      </div>
+      {/* Debug info in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed top-4 left-4 bg-white p-4 rounded shadow-lg text-xs max-w-sm">
+          <h3 className="font-bold mb-2">Debug - Auth Session</h3>
+          <pre className="text-xs overflow-auto">
+            {JSON.stringify({
+              sessionData,
+              isAuthenticated,
+              query: router.query
+            }, null, 2)}
+          </pre>
+        </div>
+      )}
     </>
   );
 }
