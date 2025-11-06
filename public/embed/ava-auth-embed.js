@@ -81,12 +81,7 @@
     // Button click handler
     button.addEventListener('click', toggleWidget);
     
-    // Close widget when clicking outside
-    document.addEventListener('click', function(e) {
-      if (isOpen && !widget.contains(e.target) && !button.contains(e.target)) {
-        closeWidget();
-      }
-    });
+    // Removed click outside to close - widget can only be closed with close button
     
     // Listen for close messages from iframe
     window.addEventListener('message', function(event) {
