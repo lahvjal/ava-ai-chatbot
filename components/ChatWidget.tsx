@@ -74,7 +74,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         // Add welcome message for pre-authenticated user
         setMessages([{
           role: 'assistant',
-          content: `Hello${preAuthenticatedUser.name ? ` ${preAuthenticatedUser.name}` : ''}! I can see you're logged in. I'm here to help you with your solar installation questions and project updates.`,
+          content: `Hello${preAuthenticatedUser.name ? ` ${preAuthenticatedUser.name}` : ''}! I'm Ava, and I can see you're logged in. I'm here to help you with your solar installation questions and project updates.`,
           timestamp: new Date()
         }]);
         return;
