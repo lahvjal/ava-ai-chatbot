@@ -76,7 +76,22 @@
     // Get references
     const button = document.getElementById(CONFIG.buttonId);
     const widget = document.getElementById(CONFIG.widgetId);
+    
+    if (!button) {
+      console.error('Button element not found');
+      return;
+    }
+    
+    if (!widget) {
+      console.error('Widget element not found');
+      return;
+    }
+    
     iframe = widget.querySelector('iframe');
+    if (!iframe) {
+      console.error('Iframe element not found in widget');
+      return;
+    }
     
     // Button click handler
     button.addEventListener('click', toggleWidget);
@@ -107,6 +122,20 @@
   // Open widget
   function openWidget() {
     const widget = document.getElementById(CONFIG.widgetId);
+    
+    if (!widget) {
+      console.error('Widget element not found');
+      return;
+    }
+    
+    if (!iframe) {
+      // Try to get iframe reference again
+      iframe = widget.querySelector('iframe');
+      if (!iframe) {
+        console.error('Iframe element not found in widget');
+        return;
+      }
+    }
     
     // Build iframe URL with session data
     let iframeUrl = CONFIG.iframeUrl;
