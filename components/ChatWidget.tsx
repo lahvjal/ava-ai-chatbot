@@ -267,10 +267,16 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   }
 
   return (
-    <div className={`${isEmbedded ? 'fixed bottom-4 right-4 z-50' : 'w-full max-w-md mx-auto'} bg-white rounded-lg shadow-xl border border-gray-200`}>
+    <div className={`${
+      forceOpen 
+        ? 'w-full h-screen flex flex-col' 
+        : isEmbedded 
+          ? 'fixed bottom-4 right-4 z-50' 
+          : 'w-full max-w-md mx-auto'
+    } bg-white ${forceOpen ? '' : 'rounded-lg shadow-xl border border-gray-200'}`}>
       {/* Header */}
       <div 
-        className="text-white p-4 rounded-t-lg flex items-center justify-between"
+        className={`text-white p-4 flex items-center justify-between ${forceOpen ? '' : 'rounded-t-lg'}`}
         style={{
           background: 'radial-gradient(146.96% 389.93% at 53.39% -106.95%, rgba(76, 142, 212, 0.50) 0%, rgba(76, 142, 212, 0.00) 100%), radial-gradient(510.44% 138.09% at -8.09% 156.8%, rgba(118, 90, 243, 0.50) 0%, rgba(187, 90, 243, 0.00) 100%), #F0F0F0'
         }}
@@ -291,7 +297,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       </div>
 
       {/* Messages */}
-      <div className="h-96 overflow-y-auto p-4 space-y-4" id='chat-container'>
+      <div className={`${forceOpen ? 'flex-1' : 'h-96'} overflow-y-auto p-4 space-y-4`} id='chat-container'>
         {actingAsEmail && (
           <div className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
             Admin test mode: impersonating <span className="font-medium">{actingAsEmail}</span>
@@ -440,7 +446,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       )}
 
       {/* Input */}
-      <div style={{ position: 'fixed', bottom: 0, width: '100%' }} className="p-4 border-t border-gray-200">
+      <div className={`p-4 border-t border-gray-200 ${forceOpen ? '' : 'fixed bottom-0 w-full'}`}>
         <div className="flex items-center space-x-2 mb-2">
           {!user ? (
             <button
