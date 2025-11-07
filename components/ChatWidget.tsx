@@ -48,6 +48,42 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Conversation persistence functions
+  const saveConversation = (msgs: Message[]) => {
+    try {
+      sessionStorage.setItem('ava-chat-messages', JSON.stringify(msgs));
+    } catch (error) {
+      console.warn('Failed to save conversation to sessionStorage:', error);
+    }
+  };
+
+  const loadConversation = (): Message[] => {
+    try {
+      const saved = sessionStorage.getItem('ava-chat-messages');
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.warn('Failed to load conversation from sessionStorage:', error);
+      return [];
+    }
+  };
+
+  const clearConversation = () => {
+    try {
+      sessionStorage.removeItem('ava-chat-messages');
+    } catch (error) {
+      console.warn('Failed to clear conversation from sessionStorage:', error);
+    }
+  };
+
+  // Custom function to update messages and save to sessionStorage
+  const updateMessages = (updater: (prev: Message[]) => Message[]) => {
+    setMessages(prev => {
+      const newMessages = updater(prev);
+      saveConversation(newMessages);
+      return newMessages;
+    });
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -59,6 +95,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   // Check for existing auth session or pre-authenticated user
   useEffect(() => {
     const checkSession = async () => {
+      // Load saved conversation first
+      const savedMessages = loadConversation();
+      const hasExistingConversation = savedMessages.length > 0;
+      
+      if (hasExistingConversation) {
+        setMessages(savedMessages);
+        console.log('🔄 [CHAT] Loaded saved conversation with', savedMessages.length, 'messages');
+      }
+      
       // If we have a pre-authenticated user, use that instead of checking Supabase
       if (preAuthenticatedUser?.email) {
         console.log('🔐 [AUTH] Using pre-authenticated user:', preAuthenticatedUser.email);
@@ -71,12 +116,16 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
           }
         });
         
-        // Add welcome message for pre-authenticated user
-        setMessages([{
-          role: 'assistant',
-          content: `Hello${preAuthenticatedUser.name ? ` ${preAuthenticatedUser.name}` : ''}! I'm Ava, and I can see you're logged in. I'm here to help you with your solar installation questions and project updates.`,
-          timestamp: new Date()
-        }]);
+        // Add welcome message for pre-authenticated user only if no saved messages
+        if (!hasExistingConversation) {
+          const welcomeMessage = [{
+            role: 'assistant' as const,
+            content: `Hello${preAuthenticatedUser.name ? ` ${preAuthenticatedUser.name}` : ''}! I'm Ava, and I can see you're logged in. I'm here to help you with your solar installation questions and project updates.`,
+            timestamp: new Date()
+          }];
+          setMessages(welcomeMessage);
+          saveConversation(welcomeMessage);
+        }
         return;
       }
       
@@ -125,7 +174,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
       if (!response.ok || !result.success) {
         console.error('❌ [AUTH] Login failed:', result.error);
-        setMessages(prev => [...prev, {
+        updateMessages(prev => [...prev, {
           role: 'assistant',
           content: `Login failed: ${result.error || 'Invalid credentials'}. Please check your email and password or contact support.`,
           timestamp: new Date()
@@ -146,7 +195,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         setLoginPassword('');
         
         // Add success message
-        setMessages(prev => [...prev, {
+        updateMessages(prev => [...prev, {
           role: 'assistant',
           content: `Welcome back! I can now access your project information. How can I help you today?`,
           timestamp: new Date()
@@ -154,7 +203,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       }
     } catch (error) {
       console.error('❌ [AUTH] Login exception:', error);
-      setMessages(prev => [...prev, {
+      updateMessages(prev => [...prev, {
         role: 'assistant',
         content: 'Login failed due to a network error. Please check your connection and try again.',
         timestamp: new Date()
@@ -167,6 +216,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setMessages([]);
+    clearConversation(); // Clear saved conversation on logout
     console.log('🔐 [AUTH] Logged out');
   };
 
@@ -179,7 +229,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    updateMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
 
@@ -221,7 +271,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
           content: data.reply,
           timestamp: new Date(),
         };
-        setMessages(prev => [...prev, assistantMessage]);
+        updateMessages(prev => [...prev, assistantMessage]);
       } else {
         throw new Error(data.error || 'Failed to get response');
       }
@@ -231,7 +281,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         content: 'Sorry, I encountered an error. Please try again.',
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, errorMessage]);
+      updateMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
       // Restore focus after loading is complete
