@@ -60,7 +60,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   const loadConversation = (): Message[] => {
     try {
       const saved = sessionStorage.getItem('ava-chat-messages');
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      
+      const messages = JSON.parse(saved);
+      // Convert timestamp strings back to Date objects
+      return messages.map((msg: any) => ({
+        ...msg,
+        timestamp: new Date(msg.timestamp)
+      }));
     } catch (error) {
       console.warn('Failed to load conversation from sessionStorage:', error);
       return [];
