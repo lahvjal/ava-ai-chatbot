@@ -1,45 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { NextApiRequest, NextApiResponse } from 'next';
+import { getAuthRedirectUrl, getBaseUrl, emailConfig } from '../../lib/config';
 
 // Initialize Resend with API key from environment variables
-const resendApiKey = process.env.RESEND_API_KEY;
-console.log('🔧 [RESEND] API Key check:', {
-  hasApiKey: !!resendApiKey,
-  keyLength: resendApiKey?.length || 0,
-  keyPrefix: resendApiKey?.substring(0, 10) || 'none'
-});
-
-const resend = new Resend(resendApiKey || '');
+const resend = new Resend(process.env.RESEND_API_KEY || '');
 
 // Initialize Supabase admin client with service role key for admin operations
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-// Get the base URL for the current environment
-function getBaseUrl(): string {
-  // First check for explicit override
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL;
-  }
-  
-  // For development
-  if (process.env.NODE_ENV === 'development') {
-    const port = process.env.PORT || '3000';
-    return `http://localhost:${port}`;
-  }
-  
-  // For production - update this to your actual domain
-  return 'https://ava-ai-chatbot.vercel.app';
-}
-
-// Email configuration
-const emailConfig = {
-  fromAddress: 'Ava AI Support <onboarding@resend.dev>', // Use Resend's test domain first
-  supportEmail: 'support@aveyo.com'
-};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Add CORS headers
@@ -74,9 +45,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Email is required' });
     }
     
-    // Get the redirect URL for password reset
-    const baseUrl = getBaseUrl();
-    const resetRedirectUrl = `${baseUrl}/reset-password`;
+    // Get the redirect URL for password reset using centralized config
+    const resetRedirectUrl = getAuthRedirectUrl('/reset-password');
 
     console.log('==== AVA AI PASSWORD RESET REQUEST ====');
     console.log('Request details:');
@@ -167,6 +137,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     
     // Create our own environment-aware reset URL
+    const baseUrl = getBaseUrl();
     const resetUrl = `${baseUrl}/reset-password?token=${token}`;
     
     console.log('Using reset URL:', resetUrl);
@@ -192,6 +163,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     
     // Validate Resend API key format
+    const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey || !resendApiKey.startsWith('re_')) {
       console.log('==== EMAIL SENDING FAILED ====');
       console.error('ERROR: Resend API key format is invalid. Should start with "re_"');
@@ -203,6 +175,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log('================================');
       return res.status(500).json({ error: 'Email service configuration error - invalid key format' });
     }
+    
+    // Note: For production, verify your domain at resend.com/domains
+    // For now, using Resend test domain which only allows verified emails
     
     const recipientEmail = email;
     const fromEmail = emailConfig.fromAddress;
