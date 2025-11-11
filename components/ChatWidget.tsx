@@ -45,6 +45,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   const [showLogin, setShowLogin] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -225,6 +227,51 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     setMessages([]);
     clearConversation(); // Clear saved conversation on logout
     console.log('🔐 [AUTH] Logged out');
+  };
+
+  const handleForgotPassword = async () => {
+    if (!forgotPasswordEmail.trim()) {
+      updateMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Please enter your email address to reset your password.',
+        timestamp: new Date()
+      }]);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        console.error('❌ [AUTH] Password reset failed:', error);
+        updateMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `Password reset failed: ${error.message}. Please try again or contact support.`,
+          timestamp: new Date()
+        }]);
+      } else {
+        console.log('✅ [AUTH] Password reset email sent to:', forgotPasswordEmail);
+        updateMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `Password reset email sent to ${forgotPasswordEmail}. Please check your inbox and follow the instructions to reset your password.`,
+          timestamp: new Date()
+        }]);
+        setShowForgotPassword(false);
+        setForgotPasswordEmail('');
+      }
+    } catch (error) {
+      console.error('❌ [AUTH] Password reset exception:', error);
+      updateMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Password reset failed due to a network error. Please check your connection and try again.',
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const sendMessage = async () => {
@@ -476,8 +523,65 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
               {isLoading ? 'Logging in...' : 'Login'}
             </button>
           </form>
+          <div className="mt-2 text-center">
+            <button
+              onClick={() => {
+                setShowLogin(false);
+                setShowForgotPassword(true);
+              }}
+              className="text-xs text-blue-600 hover:text-blue-800 underline"
+            >
+              Forgot your password?
+            </button>
+          </div>
           <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700">
             ℹ️ Login to access your project information and get personalized assistance
+          </div>
+        </div>
+      )}
+
+      {/* Forgot Password Form */}
+      {showForgotPassword && (
+        <div className="p-4 border-t border-gray-200 bg-gray-50" id='forgot-password-container'>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-medium text-gray-700">Reset Password</h4>
+            <button
+              onClick={() => setShowForgotPassword(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <form onSubmit={(e) => { e.preventDefault(); handleForgotPassword(); }} className="space-y-3">
+            <input
+              type="email"
+              placeholder="Enter your email address"
+              value={forgotPasswordEmail}
+              onChange={(e) => setForgotPasswordEmail(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isLoading ? 'Sending...' : 'Send Reset Email'}
+            </button>
+          </form>
+          <div className="mt-2 text-center">
+            <button
+              onClick={() => {
+                setShowForgotPassword(false);
+                setShowLogin(true);
+              }}
+              className="text-xs text-blue-600 hover:text-blue-800 underline"
+            >
+              Back to Login
+            </button>
+          </div>
+          <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700">
+            📧 We'll send you a link to reset your password
           </div>
         </div>
       )}
@@ -525,18 +629,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 <span>Login</span>
               </button>
               <button
-                onClick={() => {
-                  if (isEmbedded) {
-                    // For iframe embeds, send message to parent to redirect
-                    window.parent.postMessage({ 
-                      type: 'REDIRECT_PARENT', 
-                      url: 'https://goaveyo.com/forgot-password' 
-                    }, '*');
-                  } else {
-                    // For standalone use, redirect current window
-                    window.location.href = 'https://goaveyo.com/forgot-password';
-                  }
-                }}
+                onClick={() => setShowForgotPassword(true)}
                 className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors flex items-center space-x-1"
               >
                 <AlertCircle size={12} />
