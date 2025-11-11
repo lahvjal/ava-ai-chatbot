@@ -98,12 +98,17 @@
     
     // Removed click outside to close - widget can only be closed with close button
     
-    // Listen for close messages from iframe
+    // Listen for messages from iframe
     window.addEventListener('message', function(event) {
       console.log('Received message:', event.data, 'from origin:', event.origin);
       if (event.data && event.data.type === 'CLOSE_AVA_WIDGET') {
         console.log('Closing widget via message');
         closeWidget();
+      } else if (event.data && event.data.type === 'REDIRECT_PARENT') {
+        console.log('🔗 Parent redirect requested to:', event.data.url);
+        if (event.data.url) {
+          window.location.href = event.data.url;
+        }
       }
     });
     

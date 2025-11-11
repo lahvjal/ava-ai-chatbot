@@ -527,8 +527,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
               <button
                 onClick={() => {
                   if (isEmbedded) {
-                    // For iframe embeds, redirect the parent window
-                    window.parent.location.href = 'https://goaveyo.com/forgot-password';
+                    // For iframe embeds, send message to parent to redirect
+                    window.parent.postMessage({ 
+                      type: 'REDIRECT_PARENT', 
+                      url: 'https://goaveyo.com/forgot-password' 
+                    }, '*');
                   } else {
                     // For standalone use, redirect current window
                     window.location.href = 'https://goaveyo.com/forgot-password';

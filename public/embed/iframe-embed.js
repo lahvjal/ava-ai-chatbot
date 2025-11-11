@@ -128,6 +128,12 @@
           widget.style.height = event.data.height + 'px';
         }
         break;
+      case 'REDIRECT_PARENT':
+        console.log('🔗 Parent redirect requested to:', event.data.url);
+        if (event.data.url) {
+          window.location.href = event.data.url;
+        }
+        break;
       default:
         console.log('🔔 Unknown message from iframe:', event.data.type);
         break;
