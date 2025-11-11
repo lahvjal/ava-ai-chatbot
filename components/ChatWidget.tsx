@@ -241,32 +241,49 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      console.log('🔄 [RESET] Sending password reset request for:', forgotPasswordEmail);
+      
+      const response = await fetch('/api/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: forgotPasswordEmail
+        })
       });
-
-      if (error) {
-        console.error('❌ [AUTH] Password reset failed:', error);
-        updateMessages(prev => [...prev, {
-          role: 'assistant',
-          content: `Password reset failed: ${error.message}. Please try again or contact support.`,
-          timestamp: new Date()
-        }]);
-      } else {
-        console.log('✅ [AUTH] Password reset email sent to:', forgotPasswordEmail);
-        updateMessages(prev => [...prev, {
-          role: 'assistant',
-          content: `Password reset email sent to ${forgotPasswordEmail}. Please check your inbox and follow the instructions to reset your password.`,
-          timestamp: new Date()
-        }]);
-        setShowForgotPassword(false);
-        setForgotPasswordEmail('');
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('❌ [RESET] Password reset API error:', data);
+        throw new Error(data.error || 'Failed to send password reset email');
       }
-    } catch (error) {
-      console.error('❌ [AUTH] Password reset exception:', error);
+      
+      // Check if the email is not associated with an account
+      if (data.success === false) {
+        updateMessages(prev => [...prev, {
+          role: 'assistant',
+          content: data.message || 'This email is not associated with an Ava AI account. Please check your email address or contact support if you need help.',
+          timestamp: new Date()
+        }]);
+        return;
+      }
+      
+      console.log('✅ [RESET] Password reset email sent successfully:', data);
       updateMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Password reset failed due to a network error. Please check your connection and try again.',
+        content: `Password reset email sent to ${forgotPasswordEmail}! Please check your inbox and follow the instructions to reset your password. If you don't see the email, please check your spam folder.`,
+        timestamp: new Date()
+      }]);
+      setShowForgotPassword(false);
+      setForgotPasswordEmail('');
+      
+    } catch (error: any) {
+      console.error('❌ [RESET] Password reset exception:', error);
+      updateMessages(prev => [...prev, {
+        role: 'assistant',
+        content: error.message || 'Password reset failed due to a network error. Please check your connection and try again.',
         timestamp: new Date()
       }]);
     } finally {
