@@ -107,8 +107,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log(`Found ${users.length} total users in Supabase`);
     
     // Find the user with the matching email (case insensitive)
-    const user = users.find(user => 
-      user.email && user.email.toLowerCase() === email.toLowerCase()
+    const user = users.find(u => 
+      u.email && u.email.toLowerCase() === email.toLowerCase()
     );
     
     // Check if user exists

@@ -260,9 +260,16 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         headers: Object.fromEntries(response.headers.entries())
       });
       
-      const data = await response.json();
-      
-      console.log('📄 [RESET] Response data:', data);
+      let data;
+      try {
+        data = await response.json();
+        console.log('📄 [RESET] Response data:', data);
+      } catch (jsonError) {
+        console.error('❌ [RESET] JSON parsing failed:', jsonError);
+        const textResponse = await response.text();
+        console.error('❌ [RESET] Raw response:', textResponse.substring(0, 500));
+        throw new Error('Server returned invalid response (likely HTML error page)');
+      }
       
       if (!response.ok) {
         console.error('❌ [RESET] Password reset API error:', data);
