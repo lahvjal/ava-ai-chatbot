@@ -379,8 +379,58 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   };
 
   const clearProjectForm = () => {
+    setShowProjectLookup(false);
     setProjectEmail('');
-    setShowProjectLookup(true);
+  };
+
+  // Process AI response content for better formatting and link handling
+  const processAIContent = (content: string) => {
+    let processedContent = content;
+    
+    // Ensure all existing links open in new tab and have proper styling
+    processedContent = processedContent.replace(
+      /<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>/gi,
+      '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline transition-colors font-medium">'
+    );
+    
+    // Convert markdown-style links to HTML if they exist
+    processedContent = processedContent.replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline transition-colors font-medium">$1</a>'
+    );
+    
+    // Convert phone numbers to clickable links (avoid already linked numbers)
+    processedContent = processedContent.replace(
+      /(?<!href=["'][^"']*)\b(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})\b(?![^<]*<\/a>)/g,
+      '<a href="tel:$1" class="text-blue-600 hover:text-blue-800 underline transition-colors font-medium">$1</a>'
+    );
+    
+    // Convert email addresses to clickable links (avoid already linked emails)
+    processedContent = processedContent.replace(
+      /(?<!href=["'][^"']*)\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b(?![^<]*<\/a>)/g,
+      '<a href="mailto:$1" class="text-blue-600 hover:text-blue-800 underline transition-colors font-medium">$1</a>'
+    );
+    
+    // Convert double line breaks to paragraphs if not already in HTML format
+    if (!processedContent.includes('<p>') && !processedContent.includes('<div>')) {
+      processedContent = processedContent
+        .split('\n\n')
+        .map(paragraph => paragraph.trim())
+        .filter(paragraph => paragraph.length > 0)
+        .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
+        .join('');
+    }
+    
+    // Convert **bold** markdown to <strong>
+    processedContent = processedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Convert *italic* markdown to <em>
+    processedContent = processedContent.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+    // Convert `code` markdown to <code>
+    processedContent = processedContent.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    return processedContent;
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -482,8 +532,18 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
               <div className="text-sm">
                 {message.role === 'assistant' ? (
                   <div 
-                    className="prose prose-sm max-w-none [&_a]:text-blue-600 [&_a]:underline [&_a:hover]:text-blue-800 [&_a]:transition-colors"
-                    dangerouslySetInnerHTML={{ __html: message.content }}
+                    className="prose prose-sm max-w-none text-gray-800 leading-relaxed
+                      [&_p]:mb-3 [&_p:last-child]:mb-0
+                      [&_ul]:mb-3 [&_ol]:mb-3 [&_li]:mb-1
+                      [&_h1]:text-lg [&_h1]:font-semibold [&_h1]:mb-2 [&_h1]:text-gray-900
+                      [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mb-2 [&_h2]:text-gray-900
+                      [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-1 [&_h3]:text-gray-900
+                      [&_strong]:font-semibold [&_strong]:text-gray-900
+                      [&_em]:italic [&_em]:text-gray-700
+                      [&_code]:bg-gray-100 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono
+                      [&_pre]:bg-gray-100 [&_pre]:p-3 [&_pre]:rounded [&_pre]:overflow-x-auto [&_pre]:text-sm
+                      [&_blockquote]:border-l-4 [&_blockquote]:border-blue-500 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-gray-700"
+                    dangerouslySetInnerHTML={{ __html: processAIContent(message.content) }}
                   />
                 ) : (
                   <div className="whitespace-pre-wrap break-words">
@@ -667,6 +727,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
               >
                 <AlertCircle size={12} />
                 <span>Forgot Password</span>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.open('https://goaveyo.com/register', '_blank', 'noopener,noreferrer');
+                }}
+                className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors flex items-center space-x-1"
+              >
+                <span>Register</span>
               </button>
               </div>
             ) : (
