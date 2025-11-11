@@ -53,6 +53,6 @@ export function getAuthRedirectUrl(path: string): string {
  * Email configuration
  */
 export const emailConfig = {
-  fromAddress: 'Ava AI Support <onboarding@resend.dev>', // Resend test domain for now
+  fromAddress: 'Aveyo Support <support@send.goaveyo.com>', // Verified domain
   supportEmail: 'support@aveyo.com'
 };
