@@ -575,7 +575,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
       {/* Forgot Password Form */}
       {showForgotPassword && (
-        <div className="p-4 border-t border-gray-200 bg-gray-50" id='forgot-password-container'>
+        <div className="p-4 border-t border-gray-200 bg-gray-50" id='reset-container'>
           <div className="flex items-center justify-between mb-3">
             <h4 className="font-medium text-gray-700">Reset Password</h4>
             <button
@@ -649,7 +649,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       )}
 
       {/* Input */}
-      <div className={`p-4 border-t border-gray-200 ${forceOpen ? '' : 'fixed bottom-0 w-full'}`}>
+      <div className={`p-4 border-t border-gray-200`} id="buttons-container">
         {!forceOpen && (
           <div className="flex items-center space-x-2 mb-2">
             {!user ? (
@@ -671,16 +671,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
               </div>
             ) : (
               <>
-                {/* <button
-                  onClick={() => setShowProjectLookup(!showProjectLookup)}
-                  className={`text-xs px-2 py-1 rounded ${
-                    showProjectLookup 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  } transition-colors`}
-                >
-                  📋 Project Status
-                </button> */}
+                
                 <button
                   onClick={handleLogout}
                   className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 transition-colors"

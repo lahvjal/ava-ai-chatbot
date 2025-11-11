@@ -33,7 +33,25 @@ export default function EmbedIframe() {
           * {
             box-sizing: border-box !important;
           }
+          #buttons-container {
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            background: white !important;
+            z-index: 20 !important;
+            margin: 0 !important;
+          }
           #login-container {
+            position: fixed !important;
+            top: 50px !important;
+            left: 0 !important;
+            right: 0 !important;
+            background: white !important;
+            z-index: 20 !important;
+            margin: 0 !important;
+          }
+          #reset-container {
             position: fixed !important;
             top: 50px !important;
             left: 0 !important;
