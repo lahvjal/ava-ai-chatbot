@@ -525,7 +525,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 <span>Login</span>
               </button>
               <button
-                onClick={() => window.location.href='https://goaveyo.com/forgot-password'}
+                onClick={() => {
+                  if (isEmbedded) {
+                    // For iframe embeds, redirect the parent window
+                    window.parent.location.href = 'https://goaveyo.com/forgot-password';
+                  } else {
+                    // For standalone use, redirect current window
+                    window.location.href = 'https://goaveyo.com/forgot-password';
+                  }
+                }}
                 className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors flex items-center space-x-1"
               >
                 <AlertCircle size={12} />
