@@ -131,7 +131,11 @@
       case 'REDIRECT_PARENT':
         console.log('🔗 Parent redirect requested to:', event.data.url);
         if (event.data.url) {
-          window.location.href = event.data.url;
+          console.log('🚀 Redirecting parent window in 100ms...');
+          setTimeout(() => {
+            console.log('🔄 Executing redirect now...');
+            window.location.href = event.data.url;
+          }, 100);
         }
         break;
       default:
