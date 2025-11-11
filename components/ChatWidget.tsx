@@ -253,7 +253,16 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         })
       });
       
+      console.log('🔍 [RESET] Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      
       const data = await response.json();
+      
+      console.log('📄 [RESET] Response data:', data);
       
       if (!response.ok) {
         console.error('❌ [RESET] Password reset API error:', data);
