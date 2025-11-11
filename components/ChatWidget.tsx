@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MessageSquare, X, User, LogIn, MessageCircle } from 'lucide-react';
+import { Send, MessageSquare, X, User, LogIn, MessageCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import ReactMarkdown from 'react-markdown';
 
@@ -516,6 +516,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         {!forceOpen && (
           <div className="flex items-center space-x-2 mb-2">
             {!user ? (
+              <div className='flex gap-[10px]'>
               <button
                 onClick={() => setShowLogin(true)}
                 className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors flex items-center space-x-1"
@@ -523,9 +524,17 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 <LogIn size={12} />
                 <span>Login</span>
               </button>
+              <button
+                onClick={() => window.location.href='https://goaveyo.com/forgot-password'}
+                className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors flex items-center space-x-1"
+              >
+                <AlertCircle size={12} />
+                <span>Forgot Password</span>
+              </button>
+              </div>
             ) : (
               <>
-                <button
+                {/* <button
                   onClick={() => setShowProjectLookup(!showProjectLookup)}
                   className={`text-xs px-2 py-1 rounded ${
                     showProjectLookup 
@@ -534,13 +543,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                   } transition-colors`}
                 >
                   📋 Project Status
-                </button>
+                </button> */}
                 <button
                   onClick={handleLogout}
                   className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
                 >
                   Logout
                 </button>
+                
               </>
             )}
             {projectEmail && (
